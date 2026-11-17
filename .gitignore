@@ -1,0 +1,12 @@
+/var/
+
+/backend/vendor/
+/backend/.env
+/backend/database/*.sqlite*
+/backend/public/css/
+/backend/public/js/
+/backend/public/fonts/
+/frontend/node_modules/
+/frontend/.next/
+/frontend/*.tsbuildinfo
+/frontend/.env.local

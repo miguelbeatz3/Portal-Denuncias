@@ -1,0 +1,62 @@
+* { box-sizing: border-box }
+:root {
+  color-scheme: light dark;
+  --ink: light-dark(#01244d, #eef5fb);
+  --accent: light-dark(#017277, #89dfe0);
+  --teal: #018286;
+  --muted: light-dark(#435974, #bdcfde);
+  --line: light-dark(#cbd8e1, #40596e);
+  --surface: light-dark(white, #172d40);
+  --button: light-dark(#017277, #016d71);
+}
+:root[data-theme=light] { color-scheme: light }
+:root[data-theme=dark] { color-scheme: dark }
+body { margin: 0; font: 17px/1.55 'Segoe UI',sans-serif; color: var(--ink); background: light-dark(#f4f8fa, #0d1b29); min-height: 100dvh; display: flex; flex-direction: column }
+body > header { background: light-dark(white, #01244d); border-top: 3px solid light-dark(var(--teal), #01244d); border-bottom: 1px solid light-dark(var(--line), #01244d) }
+header a, header .theme-picker { color: light-dark(#017277, white) }
+header :focus-visible { outline: 2px solid currentColor; outline-offset: 3px }
+.brand { margin-inline-end: auto }
+.track-link { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 14px; border-radius: 8px; background: var(--button); color: white; text-decoration: none; font-size: .94rem; font-weight: 600 }
+.track-link:hover { background: light-dark(#005e62, #007a7d) }
+.track-link:focus-visible { outline: 3px solid var(--accent) }
+.brand img.brand-dark { display: none }
+:root[data-theme=dark] .brand-light { display: none }
+:root[data-theme=dark] .brand-dark { display: block }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) .brand-light { display: none }
+  :root:not([data-theme=light]) .brand-dark { display: block }
+}
+header .theme-picker { display: inline-flex; align-items: center; gap: 2px; padding: 3px; min-height: 42px; border: 1px solid var(--line); border-radius: 24px; background: transparent }
+.theme-picker svg { width: 32px; height: 32px; padding: 6px; border-radius: 50%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.theme-picker svg:first-child { background: light-dark(#017277, transparent); color: light-dark(white, #bdcfde) }
+.theme-picker svg:last-child { background: light-dark(transparent, #89dfe0); color: light-dark(#435974, #01244d) }
+@media (max-width: 520px) {
+  header nav { flex-wrap: wrap; padding-block: .6rem }
+  .theme-picker { margin-inline-start: auto }
+}
+@media print { :root[data-theme], :root { color-scheme: light } }
+nav, main, footer { width: min(100% - 40px, 960px); margin-inline: auto }
+nav { display: flex; align-items: center; justify-content: space-between; min-height: 72px; gap: 12px }
+a { color: var(--accent) } .brand { display: inline-flex; min-width: 0 } .brand img { display: block; width: clamp(138px, 26vw, 195px); height: auto }
+@media (max-width: 520px) {
+  header nav { gap: 8px }
+  header .brand { flex: 1 1 64px }
+  header .brand img { width: 100%; max-width: 138px }
+  .track-link { padding-inline: 10px }
+}
+main { flex: 1; padding-block: clamp(32px,7vw,84px) }
+section { max-width: 660px } .intro { padding-block: 5vh }
+h1 { font: 700 clamp(36px,6vw,66px)/1.07 'Segoe UI',sans-serif; letter-spacing: -.035em; margin: 0 0 22px }
+.region, small { color: var(--muted) } .region { font-weight: 650 }
+form, article, dl { display: grid; gap: 18px; background: var(--surface); padding: clamp(16px,4vw,32px); border: 1px solid var(--line); border-radius: 12px }
+label, legend, dt { font-weight: 600 }
+input:not([type=radio]), select, textarea { display: block; width: 100%; margin-top: 5px; padding: 11px; font: inherit; color: inherit; background: var(--surface); border: 1px solid #8497a9; border-radius: 5px }
+fieldset { border: 0; padding: 0; margin: 0 } fieldset label { margin-right: 16px; font-weight: normal }
+button,.primary,.secondary { display: inline-block; padding: 12px 20px; border-radius: 6px; border: 1px solid var(--accent); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer }
+button,.primary { background: var(--button); color: white } button:disabled { opacity: .6 }
+.buttons { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px }
+.intro .buttons a { display: inline-flex; align-items: center; gap: 8px }
+.intro .buttons svg { flex-shrink: 0 }
+dd { font: 600 1.1rem monospace; overflow-wrap: anywhere; margin: 0 }
+article { margin-top: 24px } article p,article h2 { margin: 0 } li { margin-block: 12px; overflow-wrap: anywhere }
+[role=alert] { color: light-dark(#8f2827, #ffb9b9) } footer { padding-block: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px }

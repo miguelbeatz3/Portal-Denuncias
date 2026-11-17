@@ -1,0 +1,106 @@
+<div class="report-detail">
+    <section class="rd-description" aria-labelledby="description-title">
+        <h2 id="description-title">Descrição da denúncia</h2>
+        <p class="rd-text">{{ $report->description }}</p>
+    </section>
+    @if (filled($report->evidence_description) || $report->evidence_files)
+        <section class="rd-description">
+            <h2>Provas apresentadas</h2>
+            @if (filled($report->evidence_description))
+                <p class="rd-text">{{ $report->evidence_description }}</p>
+            @endif
+            @foreach ($report->evidence_files ?? [] as $index => $path)
+                @php
+                    $preview = filament()->getCurrentPanel()->route('evidence.preview', ['report' => $report->getKey(), 'index' => $index]);
+                    $pdf = strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'pdf';
+                @endphp
+                <div class="rd-evidence">
+                    <strong>Prova {{ $index + 1 }} · {{ strtoupper(pathinfo($path, PATHINFO_EXTENSION)) }}</strong>
+                    <x-filament::modal id="prova-{{ $report->getKey() }}-{{ $index }}" width="5xl" heading="Prova {{ $index + 1 }}" teleport="body">
+                        <x-slot name="trigger">
+                            <x-filament::button icon="heroicon-o-eye" aria-label="Ver prova {{ $index + 1 }}">Ver prova</x-filament::button>
+                        </x-slot>
+                        <template x-if="isOpen">
+                            @if ($pdf)
+                                <iframe class="rd-proof-pdf" src="{{ $preview }}" title="Prova {{ $index + 1 }} em PDF"></iframe>
+                            @else
+                                <img class="rd-proof-image" src="{{ $preview }}" alt="Imagem anexada como prova {{ $index + 1 }}">
+                            @endif
+                        </template>
+                    </x-filament::modal>
+                    <x-filament::button color="gray" wire:click="downloadEvidence({{ $index }})" aria-label="Descarregar prova {{ $index + 1 }}">
+                        Descarregar
+                    </x-filament::button>
+                </div>
+            @endforeach
+        </section>
+    @endif
+    @if ($administrative && ($classification = $events->first(fn ($event) => $event->false_report_reason !== null)))
+        <section class="rd-classification">
+            <h2>Motivo da classificação</h2>
+            <p class="rd-text">{{ $classification->false_report_reason }}</p>
+        </section>
+    @endif
+    <div class="rd-context">
+        <section class="rd-occurrence">
+            <h2>Detalhes da ocorrência</h2>
+            <dl class="rd-fields">
+                <div><dt>Categoria</dt><dd>{{ $report->category ?? 'Por classificar' }}</dd></div>
+                <div><dt>Município</dt><dd>{{ $report->municipality ?? 'Não indicado' }}</dd></div>
+                <div><dt>Local</dt><dd>{{ $report->location }}</dd></div>
+                @if ($report->occurred_on)
+                    <div><dt>Data da ocorrência</dt><dd>{{ \Illuminate\Support\Carbon::parse($report->occurred_on)->format('d/m/Y') }}</dd></div>
+                @endif
+            </dl>
+        </section>
+        <section>
+            <h2>Tratamento da denúncia</h2>
+            <dl>
+                <div><dt>Entidade responsável</dt><dd>{{ $report->entity?->name ?? 'Por atribuir' }}</dd></div>
+                <div><dt>Recepção (hora de Luanda)</dt><dd>{{ $report->created_at->timezone('Africa/Luanda')->format('d/m/Y H:i') }}</dd></div>
+            </dl>
+        </section>
+        <section>
+            <h2>Denunciante</h2>
+            <dl>
+                <div><dt>{{ $report->name ? 'Nome' : 'Identificação' }}</dt><dd>{{ $report->name ?? 'Anónima' }}</dd></div>
+                @if ($report->phone)
+                    <div><dt>Telefone de contacto</dt><dd><a href="tel:{{ $report->phone }}">{{ $report->phone }}</a></dd></div>
+                @endif
+            </dl>
+        </section>
+    </div>
+
+    <section class="rd-history">
+        <div class="rd-history-title">
+            <h2>{{ $administrative ? 'Histórico administrativo' : 'Histórico público' }}</h2>
+            <small>Hora de Luanda</small>
+        </div>
+        <ol>
+            @foreach ($events as $event)
+                <li>
+                    <time>{{ \Illuminate\Support\Carbon::parse($event->created_at, 'UTC')->setTimezone('Africa/Luanda')->format('d/m/Y H:i') }}</time>
+                    <p class="rd-text">{{ $event->message }}</p>
+                    @if ($administrative && $event->false_report_reason !== null)
+                        <strong>Denúncia Falsa</strong>
+                        <small> · Classificada por {{ $event->actor_name }}</small>
+                        <p class="rd-note rd-text">Motivo: {{ $event->false_report_reason }}</p>
+                    @elseif ($administrative && $event->archive_reason !== null)
+                        <small>Arquivada por {{ $event->actor_name }}</small>
+                        <p class="rd-note rd-text">Motivo: {{ $event->archive_reason }}</p>
+                    @elseif ($administrative && $event->reassignment_reason !== null)
+                        <small>Reencaminhamento por {{ $event->actor_name }}</small>
+                        <div class="rd-note">
+                            <p>Entidade anterior: {{ $event->previous_entity_name }}</p>
+                            <p class="rd-text">Motivo: {{ $event->reassignment_reason }}</p>
+                        </div>
+                    @elseif ($administrative && $event->actor_role === 'admin')
+                        <small>Triagem por {{ $event->actor_name }}</small>
+                    @elseif ($administrative && $event->actor_role === 'entity')
+                        <small>Publicado por {{ $event->actor_name }}</small>
+                    @endif
+                </li>
+            @endforeach
+        </ol>
+    </section>
+</div>

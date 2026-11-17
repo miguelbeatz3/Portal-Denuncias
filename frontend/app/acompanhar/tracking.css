@@ -1,0 +1,35 @@
+.tracking { max-width: none }
+.tracking-back { display: inline-block; margin-bottom: 24px; font-size: .94rem; text-underline-offset: 4px }
+.tracking h1 { font-size: clamp(38px, 5vw, 64px); margin-bottom: 26px }
+.tracking-entry, .tracking-result { display: grid; grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr); gap: clamp(24px,5vw,64px); align-items: start }
+.tracking-guide { max-width: 36ch; margin: 0; color: var(--muted); font-size: 1.1rem }
+.tracking-card { min-width: 0; margin: 0; padding: clamp(20px,3.2vw,32px); border-radius: 16px }
+.tracking-card h2 { margin: 0; font-size: 1.35rem; line-height: 1.25 }
+.tracking-overview { padding: 22px; border-inline-start: 4px solid var(--accent); background: light-dark(#e4f3f3,#18363e); border-radius: 4px 14px 14px 4px }
+.tracking-caption, .tracking-hint, .tracking-timeline time { margin: 0; color: var(--muted); font-size: .92rem }
+.tracking-overview h2 { margin: 4px 0 14px; font-size: 1.75rem; line-height: 1.2 }
+.tracking-overview { border-color: var(--status-color, var(--accent)); background: var(--surface) }
+.tracking-overview h2 { color: var(--status-color, var(--ink)) }
+.tracking-overview[data-status="Recebida"] { --status-color: light-dark(#875300, #ffd580) }
+.tracking-overview[data-status="Em tratamento"] { --status-color: light-dark(#17578c, #91cdff) }
+.tracking-overview[data-status="Concluída"] { --status-color: light-dark(#226444, #86e5ae) }
+.tracking-overview[data-status="Arquivada"] { --status-color: light-dark(#505f70, #c2ccda) }
+.tracking-classification { margin-block: 12px 20px; font-size: .94rem }
+.tracking-classification strong { display: inline-block; border-radius: 20px; padding: 3px 12px; background: light-dark(#ffe2e1, #642527); color: light-dark(#92252a, #ffd5d4) }
+.tracking-description { padding-bottom: 18px; border-bottom: 1px solid var(--line) }
+.tracking-description p { margin-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere }
+.tracking-reference { display: grid; margin: 0; font-size: .92rem }
+.tracking-reference strong { font-family: monospace; font-size: 1.05rem; overflow-wrap: anywhere }
+.tracking-again { margin-top: 20px; background: transparent; color: var(--accent); padding: 8px 12px; font-size: .92rem }
+.tracking-timeline { list-style: none; padding: 0; margin: 0 }
+.tracking-timeline li { position: relative; margin: 0; padding: 0 0 20px 24px }
+.tracking-timeline li:not(:last-child)::after { content: ''; position: absolute; left: 5px; top: 13px; bottom: -9px; border-left: 2px solid var(--line) }
+.tracking-timeline li::before { content: ''; position: absolute; left: 1px; top: 8px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent) }
+.tracking-timeline li:last-child { padding-bottom: 0 }
+.tracking-timeline li p { margin-top: 4px; white-space: pre-line }
+.tracking-error { margin: 0; border-inline-start: 3px solid currentColor; padding-inline-start: 12px }
+.tracking :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px }
+@media (max-width: 700px) {
+  .tracking-entry, .tracking-result { grid-template-columns: 1fr; gap: 20px }
+  .tracking-guide { max-width: none }
+}
