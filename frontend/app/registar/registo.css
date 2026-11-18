@@ -34,6 +34,29 @@
 .credentials dd { font: 650 1.1rem/1.6 monospace; letter-spacing: .035em }
 .register-card [role=status] { margin: 0 }
 .register-card [role=status]:empty { display: none }
+@media screen and (width > 900px) {
+  .registration { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: clamp(32px, 5vw, 56px) }
+  .registration-guide { padding-top: 0 }
+  .registration h1 { font-size: 46px; margin-bottom: 14px; text-wrap: balance }
+  .registration-guide > p { max-width: 32ch }
+  .progress-list { gap: 6px; margin-top: 24px }
+  .progress-list li { position: relative; min-height: 40px; gap: 12px }
+  .progress-list li:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 13px;
+    top: calc(50% + 14px);
+    height: 18px;
+    border-inline-start: 1px solid var(--line);
+  }
+  .progress-list span { width: 28px; height: 28px; flex-shrink: 0 }
+  .register-card { gap: 22px; padding: 32px }
+  .mode-grid { gap: 14px; margin-top: 0 }
+  .register-card .mode-option { padding: 16px }
+  .registration .summary { gap: 0 }
+  .registration .summary > div { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: 16px; padding-block: 12px }
+  .registration .summary > div + div { border-top: 1px solid var(--line) }
+}
 @media (max-width: 900px) {
   .registration { grid-template-columns: 1fr; gap: 22px }
   .registration .back-home { margin-bottom: 12px }

@@ -69,7 +69,7 @@ Em **Domains**, adicione cada endereço no serviço indicado. Os valores são UR
 | Administração | `backend` | `https://admin.denuncias.it.ao` | `https://admin.denuncias.it.ao` |
 | Entidade | `backend` | `https://entidade.denuncias.it.ao` | `https://entidade.denuncias.it.ao` |
 
-O sufixo `:3000` indica a porta interna do Next.js ao proxy. O backend usa a porta interna 80. O Coolify termina o HTTPS na porta pública 443. A Administração abre em `https://admin.denuncias.it.ao/login` para quem ainda não tem sessão. O endereço anterior `/admin/login` redirecciona para `/login`. O domínio da Entidade abre o painel em `/entidade`. [Domínios em aplicações Docker Compose](https://coolify.io/docs/applications/builds/docker-compose#configure-public-services)
+O sufixo `:3000` indica a porta interna do Next.js ao proxy. O backend usa a porta interna 80. O Coolify termina o HTTPS na porta pública 443. A Administração e a Entidade abrem em `/login` nos respectivos domínios para quem ainda não tem sessão. Os endereços anteriores `/admin/login` e `/entidade/login` redireccionam para `/login` no domínio do respectivo painel. [Domínios em aplicações Docker Compose](https://coolify.io/docs/applications/builds/docker-compose#configure-public-services)
 
 ## 6. Fazer o primeiro deploy
 

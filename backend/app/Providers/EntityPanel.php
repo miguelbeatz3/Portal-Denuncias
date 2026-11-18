@@ -16,7 +16,9 @@ class EntityPanel extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        return $panel->id('entidade')->domain(config('portal.entity_domain'))->path('entidade')->login()
+        $domain = config('portal.entity_domain');
+
+        return $panel->id('entidade')->domain($domain)->path($domain ? '' : 'entidade')->login()
             ->brandName('Portal de Denúncias · Área da entidade')
             ->brandLogo(fn () => view('panels.brand', ['area' => 'Área da entidade']))
             ->brandLogoHeight('auto')

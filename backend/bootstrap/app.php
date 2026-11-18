@@ -16,7 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 });
             }
             if ($domain = config('portal.entity_domain')) {
-                Route::domain($domain)->group(fn () => Route::redirect('/', '/entidade'));
+                Route::domain($domain)->group(function () {
+                    Route::redirect('/entidade', '/');
+                    Route::redirect('/entidade/login', '/login');
+                });
             }
         },
     )

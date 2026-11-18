@@ -29,6 +29,42 @@
 .tracking-timeline li p { margin-top: 4px; white-space: pre-line; overflow-wrap: anywhere }
 .tracking-error { margin: 0; border-inline-start: 3px solid currentColor; padding-inline-start: 12px }
 .tracking :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px }
+@media screen and (width > 900px) {
+  .tracking {
+    --tracking-columns: minmax(0, 320px) minmax(0, 1fr);
+    --tracking-gap: clamp(32px, 5vw, 56px);
+  }
+  .tracking:has(.tracking-entry) {
+    display: grid;
+    grid-template-columns: var(--tracking-columns);
+    grid-template-rows: auto auto 1fr;
+    column-gap: var(--tracking-gap);
+    align-items: start;
+  }
+  .tracking-back {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .tracking-back:hover { border-color: var(--accent); background: light-dark(#eaf7f7, #194247) }
+  .tracking h1 { font-size: 46px }
+  .tracking:has(.tracking-entry) h1 { grid-column: 1; margin-bottom: 14px; text-wrap: balance }
+  .tracking-entry { display: contents }
+  .tracking-guide { grid-column: 1; max-width: 32ch; font-size: inherit }
+  .tracking-entry > .tracking-card { grid-column: 2; grid-row: 1 / span 3; gap: 22px }
+  .tracking-entry button { justify-self: end }
+  .tracking-card { padding: 32px; box-shadow: 0 8px 30px #01244d0d }
+  .tracking-result { grid-template-columns: var(--tracking-columns); gap: var(--tracking-gap) }
+  .tracking-overview { padding: 24px; border-block: 1px solid var(--line); border-inline-end: 1px solid var(--line) }
+  .tracking-again { margin-top: 16px }
+}
 @media (max-width: 900px) {
   .tracking-entry, .tracking-result { grid-template-columns: 1fr; gap: 20px }
   .tracking-guide { max-width: none }
