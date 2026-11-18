@@ -1,0 +1,10 @@
+.env*
+vendor/
+storage/
+bootstrap/cache/*.php
+database/*.sqlite*
+public/css/
+public/fonts/
+public/js/
+public/storage
+tests/

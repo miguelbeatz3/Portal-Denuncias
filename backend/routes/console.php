@@ -3,8 +3,36 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
+use App\Models\Administrator;
 use App\Models\Entity;
 use App\Models\Municipality;
+
+Artisan::command('portal:criar-administrador', function () {
+    $name = trim((string) $this->ask('Nome do administrador'));
+    $email = Str::lower(trim((string) $this->ask('E-mail do administrador')));
+    $identity = Validator::make(compact('name', 'email'), [
+        'name' => ['required', 'string', 'max:255'],
+        'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+    ]);
+    if ($identity->fails()) {
+        $this->error($identity->errors()->first());
+        return 1;
+    }
+
+    $password = $this->secret('Palavra-passe (mínimo de 12 caracteres)', false);
+    if (mb_strlen((string) $password) < 12 || strlen((string) $password) > 72 || str_contains((string) $password, "\0")) {
+        $this->error('A palavra-passe deve ter pelo menos 12 caracteres, até 72 bytes e sem bytes nulos.');
+        return 1;
+    }
+    if ($password !== $this->secret('Confirme a palavra-passe', false)) {
+        $this->error('As palavras-passe devem coincidir.');
+        return 1;
+    }
+
+    Administrator::create($identity->validated() + ['password' => $password]);
+    $this->info("Administrador criado para $email.");
+})->purpose('Criar uma conta administrativa com palavra-passe introduzida no terminal.');
 
 Artisan::command('portal:cadastrar-entidades-luanda', function () {
     $created = DB::transaction(function () {

@@ -2,6 +2,10 @@
 
 Protótipo académico com uma interface pública Next.js e dois painéis Filament sobre a mesma aplicação Laravel. A configuração de referência usa MySQL. O teste de integração usa SQLite em memória.
 
+Consulte a [documentação técnica](docs/documentacao-tecnica.md) para conhecer a arquitectura, o fluxo das denúncias, o contrato da API e a configuração operacional.
+
+Para publicar o portal e os painéis nos domínios de produção, siga o [guia de instalação no Coolify](docs/deploy-coolify.md).
+
 ## Executar localmente
 
 São necessários PHP 8.3 ou superior com as extensões intl, mbstring e PDO para a base escolhida, Composer, Node.js 24 e npm. O Composer usa PHP 8.3.0 como referência para manter as dependências compatíveis com essa versão. Execute os comandos a partir da raiz do repositório em PowerShell.
@@ -15,7 +19,7 @@ Copy-Item .env.example .env
 php artisan key:generate
 ```
 
-Copie o exemplo apenas na primeira instalação. Crie a base MySQL `portal_denuncias` e configure no ficheiro `.env` o utilizador e a palavra-passe com acesso a essa base. Para uma demonstração com SQLite, defina `DB_CONNECTION=sqlite`, remova a linha `DB_DATABASE` e crie o ficheiro vazio `database/database.sqlite` se ainda não existir.
+Copie o exemplo apenas na primeira instalação. Crie a base MySQL `portal_denuncias_bd` e configure no ficheiro `.env` o utilizador e a palavra-passe com acesso a essa base. Para uma demonstração com SQLite, defina `DB_CONNECTION=sqlite`, remova a linha `DB_DATABASE` e crie o ficheiro vazio `database/database.sqlite` se ainda não existir.
 
 ```powershell
 php artisan migrate
@@ -40,7 +44,7 @@ Abra o portal em http://localhost:3000. O Next.js encaminha os pedidos públicos
 ## Demonstração
 
 1. Registe uma ocorrência fictícia em `/registar` e guarde a referência e o código secreto.
-2. Entre no painel administrativo com `admin@portal.test`, consulte a descrição e seleccione **Encaminhar**. Confirme a categoria e escolha Atendimento Municipal.
+2. Entre no painel administrativo com `admin@portal.test`, consulte a descrição e seleccione **Encaminhar**. Confirme a categoria e escolha **Atendimento Municipal (demonstração)**.
 3. Entre em `/entidade` com `municipio@portal.test` e publique uma actualização. A opção **Concluir denúncia** permite encerrar o caso com uma mensagem final.
 4. Abra `/acompanhar` no portal e consulte o estado e as mensagens com os dois dados do recibo.
 
@@ -53,4 +57,4 @@ cd ../frontend
 npm run build
 ```
 
-O teste valida registo anónimo e identificado, consulta com código, encaminhamento único, isolamento entre entidades, listagem Filament e histórico até à conclusão. Todos os registos do teste são temporários.
+O teste cobre o registo anónimo e identificado, a consulta com código, a triagem, o isolamento entre entidades, as sessões dos painéis, os relatórios e os anexos. Os registos da base de dados do teste ficam em SQLite em memória. Os ficheiros de teste usam um disco local simulado.

@@ -17,7 +17,7 @@ class AdminPanel extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        return $panel->default()->id('admin')->path('admin')->login()
+        return $panel->default()->id('admin')->domain(config('portal.admin_domain'))->path('admin')->login()
             ->brandName('Portal de Denúncias · Administração')
             ->brandLogo(fn () => view('panels.brand', ['area' => 'Administração']))
             ->brandLogoHeight('auto')
