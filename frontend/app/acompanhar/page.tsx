@@ -5,7 +5,7 @@ import { Conversation, type ReportMessage } from './conversation';
 import { submit } from '../request';
 import './tracking.css';
 
-type History = { reference: string; status: string; description: string; classified_as_false: boolean; events: { message: string; created_at: string }[]; messages?: ReportMessage[] };
+type History = { reference: string; status: string; description: string; final_verdict?: string | null; classified_as_false: boolean; events: { message: string; created_at: string }[]; messages?: ReportMessage[] };
 
 const timestamp = new Intl.DateTimeFormat('pt-AO', {
   dateStyle: 'long', timeStyle: 'short', timeZone: 'Africa/Luanda',
@@ -14,6 +14,7 @@ const timestamp = new Intl.DateTimeFormat('pt-AO', {
 export default function Track() {
   const [session, setSession] = useState<{ history: History; credentials: FormData }>();
   const history = session?.history;
+  const reference = history?.reference;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const resultHeading = useRef<HTMLHeadingElement>(null);
@@ -21,12 +22,12 @@ export default function Track() {
   const returning = useRef(false);
 
   useEffect(() => {
-    if (history) resultHeading.current?.focus();
+    if (reference) resultHeading.current?.focus();
     else if (returning.current) {
       referenceField.current?.focus();
       returning.current = false;
     }
-  }, [history]);
+  }, [reference]);
 
   async function track(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,6 +40,12 @@ export default function Track() {
     finally { setBusy(false); }
   }
 
+  async function refreshTracking(credentials: FormData) {
+    const refreshed: History = await submit('tracking', credentials);
+    setSession(current => current?.credentials === credentials ? { credentials, history: refreshed } : current);
+    return refreshed.messages ?? [];
+  }
+
   return <section className="tracking">
     <Link className="tracking-back" href="/">← Página inicial</Link>
     <h1>Acompanhar denúncia</h1>
@@ -48,7 +55,6 @@ export default function Track() {
         <h2 ref={resultHeading} tabIndex={-1}>{history.status}</h2>
         {history.classified_as_false && <aside className="tracking-classification">
           <strong>Denúncia Falsa</strong>
-          <p>A Administração classificou esta denúncia como falsa.</p>
           <p>Acusar alguém perante uma autoridade ou em público, sabendo que a acusação é falsa e com a intenção de provocar um processo criminal contra essa pessoa, é crime de denúncia caluniosa.</p>
           <a href="https://sic.gov.ao/wp-content/uploads/2021/10/codigo-penal-angolano-lei-no-3820-de-11-de-novembro_2021-05-08-06-18-59-864.pdf">Código Penal Angolano, artigo 352.º</a>
         </aside>}
@@ -63,7 +69,11 @@ export default function Track() {
           <h2>Descrição da denúncia</h2>
           <p>{history.description}</p>
         </div>
-        <Conversation credentials={session.credentials} initialMessages={history.messages ?? []} />
+        {history.final_verdict && <section className="tracking-description" aria-labelledby="verdict-title">
+          <h2 id="verdict-title">Veredito final</h2>
+          <p>{history.final_verdict}</p>
+        </section>}
+        <Conversation credentials={session.credentials} initialMessages={history.messages ?? []} onRefresh={() => refreshTracking(session.credentials)} />
         <h2 id="history-title">Histórico da denúncia</h2>
         {history.events.length ? <>
           <p className="tracking-hint">Actualizações da mais recente à mais antiga, em hora de Luanda.</p>

@@ -3,6 +3,7 @@ namespace App\Providers;
 
 use App\Filament\ReportResource;
 use App\Http\Middleware\CheckPanelSession;
+use App\Models\Entity;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
 use Filament\Enums\ThemeMode;
@@ -21,7 +22,11 @@ class EntityPanel extends PanelProvider
 
         return $panel->id('entidade')->domain($domain)->path($domain ? '' : 'entidade')->login()
             ->brandName('Portal de Denúncias · Área da entidade')
-            ->brandLogo(fn () => view('panels.brand', ['area' => 'Área da entidade']))
+            ->brandLogo(function () {
+                $entityId = filament()->auth()->user()?->entity_id;
+                return view('panels.brand', ['area' => 'Área da Entidade',
+                    'entityName' => $entityId ? Entity::find($entityId)?->name : null]);
+            })
             ->brandLogoHeight('auto')
             ->defaultThemeMode(ThemeMode::Light)
             ->colors(['primary' => Color::hex('#018286')])

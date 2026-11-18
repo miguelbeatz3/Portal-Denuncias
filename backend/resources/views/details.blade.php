@@ -71,6 +71,13 @@
         </section>
     </div>
 
+    @if ($report->final_verdict !== null)
+        <section class="rd-description">
+            <h2>Veredito final</h2>
+            <p class="rd-text">{{ $report->final_verdict }}</p>
+        </section>
+    @endif
+
     <section class="rd-history" aria-labelledby="messages-title">
         <div class="rd-history-title">
             <h2 id="messages-title">Mensagens da denúncia</h2>
@@ -83,6 +90,9 @@
                 @foreach ($messages as $message)
                     <li>
                         <strong>{{ $message->senderLabel() }}</strong>
+                        @if ($message->sender_entity_name)
+                            <small>· {{ $message->sender_entity_name }}</small>
+                        @endif
                         <time datetime="{{ $message->created_at->toISOString() }}">{{ $message->created_at->timezone('Africa/Luanda')->format('d/m/Y H:i') }}</time>
                         <p class="rd-text">{{ $message->message }}</p>
                     </li>

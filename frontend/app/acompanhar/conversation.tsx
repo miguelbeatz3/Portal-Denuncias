@@ -3,12 +3,14 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { submit } from '../request';
 
-export type ReportMessage = { id: number; sender: 'admin' | 'entity' | 'citizen'; message: string; created_at: string };
+export type ReportMessage = { id: number; sender: 'admin' | 'entity' | 'citizen'; entity_name?: string; message: string; created_at: string };
 
 const senderLabels = { admin: 'Administração', entity: 'Entidade', citizen: 'A sua mensagem' };
 const timestamp = new Intl.DateTimeFormat('pt-AO', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Africa/Luanda' });
 
-export function Conversation({ credentials, initialMessages }: { credentials: FormData; initialMessages: ReportMessage[] }) {
+export function Conversation({ credentials, initialMessages, onRefresh }: {
+  credentials: FormData; initialMessages: ReportMessage[]; onRefresh: () => Promise<ReportMessage[]>;
+}) {
   const [messages, setMessages] = useState(initialMessages);
   const [pending, setPending] = useState<'send' | 'refresh'>();
   const [error, setError] = useState('');
@@ -52,8 +54,7 @@ export function Conversation({ credentials, initialMessages }: { credentials: Fo
     setError('');
     setNotice('');
     try {
-      const result = await submit('tracking', credentials);
-      setMessages(result.messages ?? []);
+      setMessages(await onRefresh());
       setNotice('Conversa actualizada.');
     } catch (error) {
       setError(error instanceof TypeError ? 'Falha de ligação. Verifique a rede e tente novamente.' : (error as Error).message);
@@ -65,13 +66,17 @@ export function Conversation({ credentials, initialMessages }: { credentials: Fo
   return <section className="tracking-conversation" aria-labelledby="conversation-title">
     <div className="tracking-conversation-heading">
       <h2 id="conversation-title">Mensagens da denúncia</h2>
-      <button type="button" className="secondary" onClick={refresh} disabled={!!pending}>
-        {pending === 'refresh' ? 'A actualizar…' : 'Actualizar conversa'}
+      <button type="button" className="secondary tracking-refresh" onClick={refresh} disabled={!!pending}
+        aria-label="Actualizar conversa" title="Actualizar conversa" aria-busy={pending === 'refresh'}>
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 10a8 8 0 0 0-14-4l-2 2m0-5v5h5m-5 6a8 8 0 0 0 14 4l2-2m0 5v-5h-5" />
+        </svg>
       </button>
     </div>
     {messages.length ? <ol className="tracking-messages">
       {messages.map(entry => <li key={entry.id} data-sender={entry.sender}>
-        <header><strong>{senderLabels[entry.sender]}</strong>
+        <header><div><strong>{senderLabels[entry.sender]}</strong>
+          {entry.sender === 'entity' && entry.entity_name && <small className="tracking-message-entity">{entry.entity_name}</small>}</div>
           <time dateTime={entry.created_at}>{timestamp.format(new Date(entry.created_at))}</time></header>
         <p>{entry.message}</p>
       </li>)}

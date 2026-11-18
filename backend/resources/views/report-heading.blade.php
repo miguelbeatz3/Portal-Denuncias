@@ -10,7 +10,7 @@
             'Arquivada' => 'heroicon-o-archive-box',
             default => null,
         }">{{ $report->status }}</x-filament::badge>
-    @if (auth()->user()?->role === 'admin' && $report->classified_as_false)
+    @if ($report->classified_as_false)
         <x-filament::badge color="danger">Denúncia Falsa</x-filament::badge>
     @endif
 </span>

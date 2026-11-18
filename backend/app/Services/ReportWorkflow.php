@@ -119,11 +119,10 @@ class ReportWorkflow
 
     public static function archive(Report $report, User $actor, string $reason, bool $falseReport = false): void
     {
-        abort_unless($actor->role === 'admin', 403);
         $reason = self::validateReason($reason);
         DB::transaction(function () use ($report, $actor, $reason, $falseReport) {
-            $current = Report::lockForUpdate()->findOrFail($report->id);
-            if ($current->status === 'Arquivada' || ($falseReport && $current->status === 'Concluída')) {
+            $current = self::lockStaffReport($report, $actor);
+            if (!self::canArchive($current, $actor, $falseReport)) {
                 throw ValidationException::withMessages(['reason' => 'Esta operação já não está disponível para a denúncia.']);
             }
             $current->update(['status' => 'Arquivada']);
@@ -136,36 +135,54 @@ class ReportWorkflow
         });
     }
 
-    public static function publish(Report $report, User $actor, array $data): void
+    public static function canArchive(Report $report, User $actor, bool $falseReport = false): bool
     {
-        DB::transaction(function () use ($report, $actor, $data) {
+        $eligible = $falseReport ? Report::ACTIVE : [...Report::ACTIVE, 'Concluída'];
+        return match ($actor->role) {
+            'admin' => in_array($report->status, ['Recebida', ...$eligible], true),
+            'entity' => $actor->entity_id && (int) $report->entity_id === (int) $actor->entity_id
+                && in_array($report->status, $eligible, true),
+            default => false,
+        };
+    }
+
+    public static function conclude(Report $report, User $actor, string $verdict): void
+    {
+        DB::transaction(function () use ($report, $actor, $verdict) {
             $current = self::lockEntityReport($report, $actor);
             self::requireStatus($current, 'Em tratamento');
-            if ($data['close'] ?? false) {
-                $current->update(['status' => 'Concluída']);
-                self::resolveReassignmentRequest($current, $actor, 'Encerrado por conclusão');
+            $verdict = trim($verdict);
+            if ($verdict === '' || mb_strlen($verdict) > 2000) {
+                throw ValidationException::withMessages(['verdict' => 'Indique o veredito final até 2000 caracteres.']);
             }
-            self::record($current, $actor, $data['message']);
+            $current->update(['status' => 'Concluída', 'final_verdict' => $verdict]);
+            self::resolveReassignmentRequest($current, $actor, 'Encerrado por conclusão');
+            self::record($current, $actor, 'Denúncia concluída.');
         });
     }
 
     public static function sendMessage(Report $report, User $actor, string $message): void
     {
         DB::transaction(function () use ($report, $actor, $message) {
-            if ($actor->role === 'admin') {
-                $admin = Administrator::whereKey($actor->id)->whereNull('suspended_at')
-                    ->where('session_version', (int) $actor->session_version)->sharedLock()->first();
-                abort_unless($admin, 403);
-                $current = Report::lockForUpdate()->findOrFail($report->id);
-            } else {
-                $current = self::lockEntityReport($report, $actor);
-            }
+            $current = self::lockStaffReport($report, $actor);
             $message = trim($message);
             if ($message === '' || mb_strlen($message) > 2000) {
                 throw ValidationException::withMessages(['message' => 'Escreva uma mensagem até 2000 caracteres.']);
             }
-            $current->messages()->create(['user_id' => $actor->id, 'sender' => $actor->role, 'message' => $message]);
+            $current->messages()->create(['user_id' => $actor->id, 'sender' => $actor->role, 'message' => $message,
+                'sender_entity_name' => $actor->role === 'entity' ? $current->entity()->firstOrFail()->name : null]);
         });
+    }
+
+    private static function lockStaffReport(Report $report, User $actor): Report
+    {
+        if ($actor->role !== 'admin') {
+            return self::lockEntityReport($report, $actor);
+        }
+        $admin = Administrator::whereKey($actor->id)->whereNull('suspended_at')
+            ->where('session_version', (int) $actor->session_version)->sharedLock()->first();
+        abort_unless($admin, 403);
+        return Report::lockForUpdate()->findOrFail($report->id);
     }
 
     private static function lockEntityReport(Report $report, User $actor): Report

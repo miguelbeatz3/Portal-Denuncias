@@ -75,6 +75,7 @@ Route::post('/tracking', function (Request $request) use ($trackingCredentials) 
         'reference' => $report->reference,
         'status' => $report->status,
         'description' => $report->description,
+        'final_verdict' => $report->final_verdict,
         'classified_as_false' => DB::table('report_events')->where('report_id', $report->id)
             ->whereNotNull('false_report_reason')->exists(),
         'events' => DB::table('report_events')->where('report_id', $report->id)->orderBy('id')->get(['message', 'created_at']),

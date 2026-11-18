@@ -4,7 +4,7 @@ namespace App\Filament;
 use App\Models\{Category, Entity, Report};
 use App\Services\ReportWorkflow;
 use Filament\Actions\Action;
-use Filament\Forms\Components\{Hidden, Select, Textarea, Toggle};
+use Filament\Forms\Components\{Hidden, Select, Textarea};
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -37,11 +37,11 @@ class ReportResource extends Resource
     {
         $user = auth()->user();
         $query = parent::getEloquentQuery();
-        if ($user->role !== 'admin') {
-            return $query->where('entity_id', $user->entity_id)->whereNotNull('entity_id');
-        }
         if (static::class === self::class) {
             $query->addSelect(['classified_as_false' => self::falseClassification()->limit(1)]);
+        }
+        if ($user->role !== 'admin') {
+            $query->where('entity_id', $user->entity_id)->whereNotNull('entity_id');
         }
         return $query;
     }
@@ -109,7 +109,6 @@ class ReportResource extends Resource
             self::consultAction(),
             self::assignAction()->iconButton()->tooltip('Encaminhar'),
             self::reassignAction()->iconButton()->tooltip('Reencaminhar'),
-            self::publishAction()->iconButton()->tooltip('Publicar actualização'),
         ]);
     }
 
@@ -150,7 +149,7 @@ class ReportResource extends Resource
                 ->successNotificationTitle('Mensagem enviada')
                 ->action(fn (Report $record, array $data) => ReportWorkflow::sendMessage($record, auth()->user(), $data['message'])),
             Action::make('arquivar')->label('Arquivar')->icon(Heroicon::OutlinedArchiveBox)->button()->color('gray')
-                ->visible(fn (Report $record) => auth()->user()->role === 'admin' && $record->status !== 'Arquivada')
+                ->visible(fn (Report $record) => ReportWorkflow::canArchive($record, auth()->user()))
                 ->modalHeading('Arquivar denúncia')->modalSubmitActionLabel('Confirmar arquivo')
                 ->schema([
                     Textarea::make('reason')->label('Motivo do arquivo')->required()->maxLength(2000)
@@ -158,8 +157,7 @@ class ReportResource extends Resource
                 ])
                 ->action(fn (Report $record, array $data) => ReportWorkflow::archive($record, auth()->user(), $data['reason'])),
             Action::make('denunciaFalsa')->label('Denúncia Falsa')->icon(Heroicon::OutlinedFlag)->button()->color('danger')
-                ->visible(fn (Report $record) => auth()->user()->role === 'admin'
-                    && in_array($record->status, ['Recebida', ...Report::ACTIVE], true))
+                ->visible(fn (Report $record) => ReportWorkflow::canArchive($record, auth()->user(), falseReport: true))
                 ->modalHeading('Classificar como denúncia falsa')
                 ->modalDescription('Esta decisão arquiva a denúncia. O cidadão verá o estado «Arquivada» e a classificação «Denúncia Falsa». O motivo fica no histórico administrativo.')
                 ->schema([
@@ -168,19 +166,15 @@ class ReportResource extends Resource
                 ])
                 ->modalSubmitActionLabel('Confirmar classificação')
                 ->action(fn (Report $record, array $data) => ReportWorkflow::classifyAsFalse($record, auth()->user(), $data['reason'])),
-            self::publishAction(),
-        ];
-    }
-
-    private static function publishAction(): Action
-    {
-        return Action::make('actualizar')->label('Publicar actualização')
-                ->icon(Heroicon::OutlinedPencilSquare)->button()
+            Action::make('concluir')->label('Concluir')->icon(Heroicon::OutlinedCheckCircle)->button()->color('success')
                 ->visible(fn (Report $record) => auth()->user()->role === 'entity' && $record->status === 'Em tratamento')
+                ->modalHeading('Concluir denúncia')->modalSubmitActionLabel('Confirmar conclusão')
                 ->schema([
-                    Textarea::make('message')->label('Mensagem visível ao cidadão')->required()->maxLength(2000),
-                    Toggle::make('close')->label('Concluir denúncia'),
-                ])->action(fn (Report $record, array $data) => ReportWorkflow::publish($record, auth()->user(), $data));
+                    Textarea::make('verdict')->label('Veredito final')->required()->maxLength(2000)
+                        ->helperText('O veredito fica visível ao denunciante no acompanhamento.'),
+                ])
+                ->action(fn (Report $record, array $data) => ReportWorkflow::conclude($record, auth()->user(), $data['verdict'])),
+        ];
     }
 
     private static function assignAction(): Action
