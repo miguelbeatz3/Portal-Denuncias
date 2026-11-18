@@ -10,7 +10,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function () {
             if ($domain = config('portal.admin_domain')) {
-                Route::domain($domain)->group(fn () => Route::redirect('/', '/admin'));
+                Route::domain($domain)->group(function () {
+                    Route::redirect('/admin', '/');
+                    Route::redirect('/admin/login', '/login');
+                });
             }
             if ($domain = config('portal.entity_domain')) {
                 Route::domain($domain)->group(fn () => Route::redirect('/', '/entidade'));

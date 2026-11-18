@@ -50,10 +50,10 @@ Em **Environment Variables** da aplicação, introduza os valores abaixo no ambi
 
 Se usar um destino com outro nome de rede e `DB_NETWORK` ainda não aparecer, adicione a variável em **Environment Variables**.
 
-Para uma instalação nova, gere a chave Laravel num terminal com PHP.
+Para uma instalação nova, execute este comando na pasta `backend`, depois de instalar as dependências com `composer install`. O comando mostra a chave para copiar para o Coolify sem alterar o ficheiro `.env` local.
 
 ```bash
-php -r 'echo "base64:", base64_encode(random_bytes(32)), PHP_EOL;'
+php artisan key:generate --show
 ```
 
 Guarde os valores num gestor de segredos. Em actualizações, mantenha a `APP_KEY` existente. A palavra-passe de root é gerida no recurso MySQL. [Variáveis de ambiente no Coolify](https://coolify.io/docs/applications/configuration/environment-variables)
@@ -69,7 +69,7 @@ Em **Domains**, adicione cada endereço no serviço indicado. Os valores são UR
 | Administração | `backend` | `https://admin.denuncias.it.ao` | `https://admin.denuncias.it.ao` |
 | Entidade | `backend` | `https://entidade.denuncias.it.ao` | `https://entidade.denuncias.it.ao` |
 
-O sufixo `:3000` indica a porta interna do Next.js ao proxy. O backend usa a porta interna 80. O Coolify termina o HTTPS na porta pública 443. O Laravel redirecciona as raízes de Administração e Entidade para os respectivos painéis em `/admin` e `/entidade`. [Domínios em aplicações Docker Compose](https://coolify.io/docs/applications/builds/docker-compose#configure-public-services)
+O sufixo `:3000` indica a porta interna do Next.js ao proxy. O backend usa a porta interna 80. O Coolify termina o HTTPS na porta pública 443. A Administração abre em `https://admin.denuncias.it.ao/login` para quem ainda não tem sessão. O endereço anterior `/admin/login` redirecciona para `/login`. O domínio da Entidade abre o painel em `/entidade`. [Domínios em aplicações Docker Compose](https://coolify.io/docs/applications/builds/docker-compose#configure-public-services)
 
 ## 6. Fazer o primeiro deploy
 
