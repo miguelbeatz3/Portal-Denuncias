@@ -78,6 +78,7 @@ try {
 } catch (\Illuminate\Validation\ValidationException) {}
 check(!Operator::whereKey($users['admin']->id)->exists(), 'Administrator listed as an operator');
 ReportWorkflow::assign($report, $users['admin'], ['category' => 'Vandalismo e danos a bens', 'entity_id' => $entity]);
+check(postJson('tracking', $receipt, 200)['status'] === 'Encaminhada', 'Initial routing is not public');
 Entity::findOrFail($entity)->update(['accepts_reports' => false]);
 try {
     ReportWorkflow::assign($report, $users['admin'], ['category' => 'Outro assunto', 'entity_id' => $other]);
@@ -111,12 +112,21 @@ foreach (['admin' => 'admin', 'operador' => 'entidade'] as $user => $panel) {
         check($adminLinks->length === 1 && trim($adminLinks->item(0)->textContent) === 'Utilizadores', 'Incorrect administrative access group');
     }
 }
+try {
+    ReportWorkflow::publish($report, $users['operador'], ['message' => 'Publicação prematura']);
+    throw new RuntimeException('Publication accepted before treatment');
+} catch (\Illuminate\Validation\ValidationException) {}
+ReportWorkflow::startTreatment($report, $users['operador']);
+try {
+    ReportWorkflow::startTreatment($report, $users['operador']);
+    throw new RuntimeException('Treatment started twice');
+} catch (\Illuminate\Validation\ValidationException) {}
 ReportWorkflow::publish($report, $users['operador'], ['message' => 'Em análise.']);
 ReportWorkflow::publish($report, $users['operador'], ['message' => 'Resolvida.', 'close' => true]);
 $history = postJson('tracking', $receipt, 200);
 check($history['description'] === $input['description'] && $history['classified_as_false'] === false, 'Incorrect citizen report details');
 check($history['status'] === 'Concluída' && array_column($history['events'], 'message') ===
-    ['Recebida para triagem.', 'Encaminhada para Entidade de teste.', 'Em análise.', 'Resolvida.'], 'Incorrect history');
+    ['Recebida para triagem.', 'Encaminhada para Entidade de teste.', 'A entidade iniciou o tratamento da denúncia.', 'Em análise.', 'Resolvida.'], 'Incorrect history');
 Auth::login($users['admin']);
 DB::table('report_events')->where('report_id', $report->id)->where('user_id', $users['admin']->id)
     ->update(['created_at' => '2025-12-31 23:30:00']);
@@ -127,7 +137,7 @@ foreach (['Histórico administrativo', 'Triagem por admin', '01/01/2026 00:30',
     'Encaminhada para Entidade de teste.', 'Publicado por operador'] as $detail) {
     check(str_contains($adminDetails, $detail), 'Administrative history missing '.$detail);
 }
-check(substr_count($adminDetails, 'Publicado por operador') === 2, 'Each update needs an author');
+check(substr_count($adminDetails, 'Publicado por operador') === 3, 'Each operator event needs an author');
 Auth::login($users['operador']);
 $entityDetails = ReportResource::details($report)->render();
 check(str_contains($entityDetails, 'Histórico público') && !str_contains($entityDetails, 'Triagem por')
@@ -214,7 +224,7 @@ check($csv instanceof \Symfony\Component\HttpFoundation\StreamedResponse, 'Missi
 ob_start();
 $csv->sendContent();
 $content = ob_get_clean();
-check(str_contains($content, 'Total;1;0;0;0;0;1'), 'Incorrect filtered CSV counts');
+check(str_contains($content, 'Total;1;0;0;0;0;0;0;1'), 'Incorrect filtered CSV counts');
 $pdfReport = $kernel->handle(Request::create('/admin/relatorios/exportar/pdf'.$reportParams));
 check($pdfReport->isOk() && $pdfReport->headers->get('Content-Type') === 'application/pdf'
     && str_starts_with($pdfReport->getContent(), '%PDF-') && str_contains($pdfReport->headers->get('Content-Disposition'), '.pdf'),
@@ -245,17 +255,36 @@ check(str_contains($filtered, $report->reference) && !str_contains($filtered, 'L
     && !str_contains($filtered, $older->reference), 'Combined entity and category filters');
 $correctionReceipt = postJson('reports', $input, 201);
 $correction = Report::where('reference', $correctionReceipt['reference'])->firstOrFail();
+ReportWorkflow::sendMessage($correction, $users['admin'], 'Pode indicar a hora em que ocorreu?');
+$citizenReply = $correctionReceipt + ['message' => 'Ocorreu pelas 10h.', 'message_id' => (string) \Illuminate\Support\Str::uuid()];
+postJson('tracking/messages', array_replace($citizenReply, ['secret' => $receipt['secret']]), 404);
+postJson('tracking/messages', array_replace($citizenReply, ['message' => '  ']), 422);
+$sent = postJson('tracking/messages', $citizenReply, 201);
+check($sent['sender'] === 'citizen' && $sent['message'] === $citizenReply['message']
+    && array_keys($sent) === ['id', 'sender', 'message', 'created_at'], 'Incorrect citizen message or leaked metadata');
+check(postJson('tracking/messages', $citizenReply, 201) === $sent, 'Retry did not return the original message');
+postJson('tracking/messages', array_replace($citizenReply, ['message' => 'Outro texto com o mesmo identificador.']), 409);
+check(postJson('tracking', $receipt, 200)['messages'] === [], 'Conversation leaked to another report');
 Entity::findOrFail($entity)->update(['accepts_reports' => true]);
 ReportWorkflow::assign($correction, $users['admin'], ['category' => 'Outro assunto', 'entity_id' => $entity]);
+ReportWorkflow::sendMessage($correction, $users['operador'], 'Recebemos a sua resposta.');
+try {
+    ReportWorkflow::sendMessage($correction, $users['outro'], 'Mensagem de outra entidade.');
+    throw new RuntimeException('Cross-entity message accepted');
+} catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected message denial'); }
+$conversation = postJson('tracking', $correctionReceipt, 200);
+check($conversation['status'] === 'Encaminhada' && array_column($conversation['messages'], 'sender') === ['admin', 'citizen', 'entity']
+    && array_column($conversation['messages'], 'message') === ['Pode indicar a hora em que ocorreu?', $citizenReply['message'], 'Recebemos a sua resposta.'],
+    'Conversation order or report state changed');
 $dashboard = $kernel->handle(Request::create('/admin'));
-check($dashboard->isOk() && str_contains($dashboard->getContent(), 'Entidade de teste')
-    && !str_contains($dashboard->getContent(), 'Nenhuma entidade tem denúncias em tratamento.'), 'Dashboard entity workload');
+check($dashboard->isOk() && str_contains($dashboard->getContent(), 'Encaminhada')
+    && str_contains($dashboard->getContent(), 'Nenhuma entidade tem denúncias em tratamento.'), 'Routing counts toward treatment workload');
 $openRecord = $correction->fresh();
 foreach (['operador' => true, 'outro' => false] as $login => $ownsReport) {
     Auth::login($users[$login]);
     $overview = $kernel->handle(Request::create('/entidade'));
     $html = $overview->getContent();
-    check($overview->isOk() && str_contains($html, 'Denúncias em tratamento')
+    check($overview->isOk() && str_contains($html, 'Denúncias em aberto')
         && str_contains($html, $correction->reference) === $ownsReport
         && !str_contains($html, 'Fila de triagem'), 'Entity overview scope or navigation incorrect');
     $expectedTotal = Report::where('entity_id', $users[$login]->entity_id)
@@ -292,9 +321,44 @@ function checkTableBadgeColors(array $expected): void
         check($matches->length > 0, 'Incorrect table badge: '.$label);
     }
 }
-checkTableBadgeColors(['Recebida' => 'warning', 'Em tratamento' => 'info', 'Concluída' => 'success']);
+checkTableBadgeColors(['Recebida' => 'warning', 'Encaminhada' => 'primary', 'Concluída' => 'success']);
 $transfer = ['previous_entity_id' => $entity, 'entity_id' => $other, 'reason' => 'Competência territorial revista.'];
-foreach ([['entity_id' => $entity], ['entity_id' => $paused->id], ['reason' => '  '], ['previous_entity_id' => $other]] as $invalid) {
+$entityDetailPath = '/entidade/denuncias/'.$correction->getKey();
+Auth::login($users['operador']);
+$awaiting = $kernel->handle(Request::create($entityDetailPath));
+check($awaiting->isOk() && str_contains($awaiting->getContent(), 'Iniciar tratamento')
+    && str_contains($awaiting->getContent(), 'Solicitar reencaminhamento')
+    && str_contains($awaiting->getContent(), 'Enviar mensagem') && str_contains($awaiting->getContent(), $citizenReply['message'])
+    && !str_contains($awaiting->getContent(), 'Publicar actualização'), 'Wrong entity actions before treatment');
+$request = ['suggested_entity_id' => $other, 'reason' => 'Pedido interno da entidade.'];
+try {
+    ReportWorkflow::requestReassignment($correction, $users['outro'], $request);
+    throw new RuntimeException('Cross-entity request accepted');
+} catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected request denial'); }
+ReportWorkflow::requestReassignment($correction, $users['operador'], $request);
+$firstRequest = $correction->pendingReassignmentRequest()->firstOrFail();
+try {
+    ReportWorkflow::requestReassignment($correction, $users['operador'], $request);
+    throw new RuntimeException('Duplicate pending request accepted');
+} catch (\Illuminate\Validation\ValidationException) {}
+$stillAssigned = postJson('tracking', $correctionReceipt, 200);
+check($stillAssigned['status'] === 'Encaminhada' && $correction->fresh()->entity_id === $entity
+    && !str_contains(json_encode($stillAssigned), $request['reason']), 'Private request changed public state');
+Auth::login($users['admin']);
+$pendingPage = $kernel->handle(Request::create('/admin/denuncias/'.$correction->getKey()));
+check($pendingPage->isOk() && str_contains($pendingPage->getContent(), 'Aprovar e reencaminhar')
+    && str_contains($pendingPage->getContent(), 'Recusar pedido')
+    && str_contains($pendingPage->getContent(), 'Enviar mensagem') && str_contains($pendingPage->getContent(), $citizenReply['message'])
+    && str_contains($pendingPage->getContent(), $request['reason']), 'Pending request missing from administrative detail');
+$pendingRows = tableRows('/admin/denuncias?'.http_build_query(['filters' => ['pending_reassignment' => ['isActive' => 1]]]));
+check(str_contains($pendingRows, $correction->reference) && !str_contains($pendingRows, $newer->reference), 'Pending request filter failed');
+ReportWorkflow::declineReassignment($correction, $users['admin'], $firstRequest->id, 'Fundamentação insuficiente.');
+Auth::login($users['operador']);
+check(str_contains(ReportResource::details($correction)->render(), 'Fundamentação insuficiente.'), 'Request response missing for requesting entity');
+ReportWorkflow::requestReassignment($correction, $users['operador'], $request);
+$transfer['request_id'] = $correction->pendingReassignmentRequest()->value('id');
+Auth::login($users['admin']);
+foreach ([['entity_id' => $entity], ['entity_id' => $paused->id], ['reason' => '  '], ['previous_entity_id' => $other], ['request_id' => $firstRequest->id]] as $invalid) {
     try {
         ReportWorkflow::reassign($openRecord, $users['admin'], array_replace($transfer, $invalid));
         throw new RuntimeException('Invalid reassignment accepted');
@@ -305,13 +369,15 @@ try {
     throw new RuntimeException('Operator reassigned report');
 } catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected reassignment denial'); }
 ReportWorkflow::reassign($openRecord, $users['admin'], $transfer);
+check($correction->reassignmentRequests()->findOrFail($transfer['request_id'])->resolution === 'Reencaminhada'
+    && postJson('tracking', $correctionReceipt, 200)['status'] === 'Reencaminhada', 'Accepted request or public routing status not updated');
+checkTableBadgeColors(['Reencaminhada' => 'primary']);
 $details = ReportResource::details($correction)->render();
 foreach (['Reencaminhamento por admin', 'Entidade anterior: Entidade de teste', 'Reencaminhada para Outra entidade.', $transfer['reason']] as $value) {
     check(str_contains($details, $value), 'Missing administrative correction detail');
 }
 Auth::login($users['operador']);
 check(!ReportResource::getEloquentQuery()->whereKey($correction->id)->exists(), 'Old entity can list report');
-$entityDetailPath = '/entidade/denuncias/'.$correction->getKey();
 check($kernel->handle(Request::create($entityDetailPath))->getStatusCode() === 404, 'Former entity can open direct page');
 try {
     ReportResource::details($openRecord);
@@ -321,16 +387,27 @@ try {
     ReportWorkflow::publish($openRecord, $users['operador'], ['message' => 'Pedido anterior']);
     throw new RuntimeException('Stale publication accepted after transfer');
 } catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected stale publication response'); }
+try {
+    ReportWorkflow::sendMessage($openRecord, $users['operador'], 'Mensagem após transferência.');
+    throw new RuntimeException('Former entity sent a message');
+} catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected stale message response'); }
 Auth::login($users['outro']);
 $entityPage = $kernel->handle(Request::create($entityDetailPath));
-check($entityPage->isOk() && str_contains($entityPage->getContent(), 'Publicar actualização')
+check($entityPage->isOk() && str_contains($entityPage->getContent(), 'Iniciar tratamento')
+    && str_contains($entityPage->getContent(), 'Solicitar reencaminhamento')
+    && str_contains($entityPage->getContent(), $citizenReply['message'])
+    && !str_contains($entityPage->getContent(), $request['reason'])
     && !str_contains($entityPage->getContent(), $transfer['reason']), 'Incorrect entity detail page');
 check(!str_contains(ReportResource::details($correction)->render(), $transfer['reason']), 'Private reason in entity panel');
+ReportWorkflow::startTreatment($correction, $users['outro']);
+$inTreatment = $kernel->handle(Request::create($entityDetailPath));
+check($inTreatment->isOk() && str_contains($inTreatment->getContent(), 'Publicar actualização')
+    && !str_contains($inTreatment->getContent(), 'Iniciar tratamento'), 'Wrong entity actions during treatment');
 ReportWorkflow::publish($correction, $users['outro'], ['message' => 'Seguimento pela nova entidade.']);
 $public = postJson('tracking', $correctionReceipt, 200);
 check($public['status'] === 'Em tratamento' && array_column($public['events'], 'message') === [
     'Recebida para triagem.', 'Encaminhada para Entidade de teste.', 'Reencaminhada para Outra entidade.',
-    'Seguimento pela nova entidade.',
+    'A entidade iniciou o tratamento da denúncia.', 'Seguimento pela nova entidade.',
 ], 'Incorrect public transfer history');
 check(!str_contains(json_encode($public, JSON_UNESCAPED_UNICODE), $transfer['reason']), 'Private reason in public tracking');
 Auth::login($users['admin']);
@@ -380,6 +457,7 @@ check(str_contains($heading, 'fi-color-danger') && str_contains($heading, 'Arqui
 check(str_contains($audit, 'Motivo da classificação') && strpos($audit, $reason) < strpos($audit, 'Detalhes da ocorrência'),
     'Classification reason missing at top of modal');
 $result = postJson('tracking', $correctionReceipt, 200);
+check(count($result['messages']) === 3 && !str_contains(json_encode($result['messages']), $request['reason']), 'Internal text leaked into conversation');
 check($result['classified_as_false'] === true, 'Missing public false classification');
 check($result['status'] === 'Arquivada' && end($result['events'])['message'] === 'Denúncia arquivada.'
     && !str_contains(json_encode($result, JSON_UNESCAPED_UNICODE), $reason), 'Incorrect public closure');
@@ -465,7 +543,7 @@ try {
     check(isset($e->errors()['category']), 'Unexpected classification error');
 }
 ReportWorkflow::assign($pending, $users['admin'], ['entity_id' => $localEntity->id, 'category' => 'Vandalismo e danos a bens']);
-check($pending->refresh()->category === 'Vandalismo e danos a bens' && $pending->status === 'Em tratamento', 'Triage classification not saved');
+check($pending->refresh()->category === 'Vandalismo e danos a bens' && $pending->status === 'Encaminhada', 'Triage classification not saved');
 $saved->update(['entity_id' => $entity]);
 $disk->put('report-evidence/test.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII='));
 $saved->update(['evidence_files' => [...$saved->evidence_files, 'report-evidence/test.png']]);
@@ -491,4 +569,28 @@ check(str_contains(tableRows('/admin/operadores/'.$responsible->id), $pending->r
     && !str_contains(tableRows('/admin/operadores/'.$responsible->id), $report->reference), 'Incorrect personal assignments');
 ReportWorkflow::reassign($pending, $users['admin'], ['entity_id' => $other, 'previous_entity_id' => $entity, 'reason' => 'Transferência de teste']);
 check($pending->refresh()->operator_id === null && !$responsible->reports()->whereKey($pending->id)->exists(), 'Operator retained transferred report');
-echo "OK: registo, catálogos, painéis, triagem, reencaminhamento, isolamento, publicação, conclusão e histórico.\n";
+
+$migration = require dirname(__DIR__).'/database/migrations/2026_11_18_000001_add_report_routing_workflow.php';
+$migration->down();
+foreach (['routed' => 'Encaminhada', 'rerouted' => 'Reencaminhada', 'treated' => 'Em tratamento', 'unknown' => 'Em tratamento'] as $case => $expected) {
+    $legacy = $pending->replicate()->forceFill(['reference' => 'LD-LEGACY-'.$case, 'status' => 'Em tratamento']);
+    $legacy->save();
+    $event = ['report_id' => $legacy->id, 'created_at' => now()];
+    if ($case !== 'unknown') {
+        DB::table('report_events')->insert($event + ['user_id' => $users['admin']->id, 'message' => 'Encaminhada para Entidade de teste.']);
+    }
+    if (in_array($case, ['rerouted', 'treated'], true)) {
+        DB::table('report_events')->insert($event + ['user_id' => $users['operador']->id, 'message' => 'Primeira entidade iniciou análise.']);
+        DB::table('report_events')->insert($event + ['user_id' => $users['admin']->id, 'message' => 'Reencaminhada para Outra entidade.',
+            'reassignment_reason' => 'Mudança territorial.']);
+    }
+    if ($case === 'treated') {
+        DB::table('report_events')->insert($event + ['user_id' => $users['outro']->id, 'message' => 'Nova entidade em análise.']);
+    }
+    $legacyStatuses[$legacy->id] = $expected;
+}
+$migration->up();
+foreach ($legacyStatuses as $id => $expected) {
+    check(Report::findOrFail($id)->status === $expected, 'Incorrect legacy routing migration for '.$id);
+}
+echo "OK: registo, painéis, encaminhamento, pedidos, mensagens, isolamento, tratamento, conclusão e migração.\n";

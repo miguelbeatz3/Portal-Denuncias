@@ -13,7 +13,7 @@ export async function submit(path: string, values: FormData) {
     if (Object.keys(result.errors ?? {}).some(field => field.startsWith('evidence_files'))) {
       throw new Error('Verifique os anexos. São permitidos até 3 ficheiros PDF, JPG ou PNG de 2 MB cada.');
     }
-    throw new Error(result.errors?.evidence_description?.[0] ?? 'Verifique os campos do formulário.');
+    throw new Error(result.errors?.evidence_description?.[0] ?? result.errors?.message?.[0] ?? 'Verifique os campos do formulário.');
   }
   if (!response.ok) throw new Error('O serviço está indisponível. Volte a tentar.');
   return response.json();

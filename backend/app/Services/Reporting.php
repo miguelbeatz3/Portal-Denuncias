@@ -10,7 +10,7 @@ use Illuminate\Validation\Rule;
 class Reporting
 {
     public const GROUPS = ['municipality' => 'Município', 'category' => 'Categoria', 'entity' => 'Entidade'];
-    public const STATES = ['Recebida' => 'Por triar', 'Em tratamento' => 'Em tratamento', 'Concluída' => 'Concluídas', 'Arquivada' => 'Arquivadas'];
+    public const STATES = Report::STATES;
 
     public static function generate(Request $request): array
     {

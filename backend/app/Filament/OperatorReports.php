@@ -20,7 +20,7 @@ class OperatorReports extends EntityReports
                     ->schema([
                         Select::make('report_id')->label('Denúncia da entidade')->required()->searchable()
                             ->options(fn () => Report::where('entity_id', $this->getOwnerRecord()->entity_id)
-                                ->where('status', 'Em tratamento')->whereNull('operator_id')->orderByDesc('id')
+                                ->whereIn('status', Report::ACTIVE)->whereNull('operator_id')->orderByDesc('id')
                                 ->pluck('reference', 'id')),
                     ])
                     ->action(fn (array $data) => ReportWorkflow::assignOperator($data['report_id'], $this->getOwnerRecord(), auth()->user())),

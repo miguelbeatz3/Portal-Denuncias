@@ -8,14 +8,7 @@ export function ThemePicker() {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
-    const system = window.matchMedia('(prefers-color-scheme: dark)');
-    function sync() {
-      const saved = document.documentElement.dataset.theme;
-      setDark(saved ? saved === 'dark' : system.matches);
-    }
-    sync();
-    system.addEventListener('change', sync);
-    return () => system.removeEventListener('change', sync);
+    setDark(document.documentElement.dataset.theme === 'dark');
   }, []);
 
   function toggle() {

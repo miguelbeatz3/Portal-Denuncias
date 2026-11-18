@@ -1,17 +1,19 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Conversation, type ReportMessage } from './conversation';
 import { submit } from '../request';
 import './tracking.css';
 
-type History = { reference: string; status: string; description: string; classified_as_false: boolean; events: { message: string; created_at: string }[] };
+type History = { reference: string; status: string; description: string; classified_as_false: boolean; events: { message: string; created_at: string }[]; messages?: ReportMessage[] };
 
 const timestamp = new Intl.DateTimeFormat('pt-AO', {
   dateStyle: 'long', timeStyle: 'short', timeZone: 'Africa/Luanda',
 });
 
 export default function Track() {
-  const [history, setHistory] = useState<History>();
+  const [session, setSession] = useState<{ history: History; credentials: FormData }>();
+  const history = session?.history;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const resultHeading = useRef<HTMLHeadingElement>(null);
@@ -32,7 +34,7 @@ export default function Track() {
     const credentials = new FormData(event.currentTarget);
     setBusy(true);
     setError('');
-    try { setHistory(await submit('tracking', credentials)); }
+    try { setSession({ history: await submit('tracking', credentials), credentials }); }
     catch (e) { setError(e instanceof TypeError ? 'Falha de ligação. Verifique a rede e volte a tentar.' : (e as Error).message); }
     finally { setBusy(false); }
   }
@@ -40,7 +42,7 @@ export default function Track() {
   return <section className="tracking">
     <Link className="tracking-back" href="/">← Página inicial</Link>
     <h1>Acompanhar denúncia</h1>
-    {history ? <div className="tracking-result">
+    {session && history ? <div className="tracking-result">
       <div className="tracking-overview" data-status={history.status}>
         <p className="tracking-caption">Estado actual</p>
         <h2 ref={resultHeading} tabIndex={-1}>{history.status}</h2>
@@ -53,7 +55,7 @@ export default function Track() {
         <p className="tracking-reference">Referência <strong>{history.reference}</strong></p>
         <button type="button" className="tracking-again" onClick={() => {
           returning.current = true;
-          setHistory(undefined);
+          setSession(undefined);
         }}>Consultar outra denúncia</button>
       </div>
       <article className="tracking-card" aria-labelledby="history-title">
@@ -61,6 +63,7 @@ export default function Track() {
           <h2>Descrição da denúncia</h2>
           <p>{history.description}</p>
         </div>
+        <Conversation credentials={session.credentials} initialMessages={history.messages ?? []} />
         <h2 id="history-title">Histórico da denúncia</h2>
         {history.events.length ? <>
           <p className="tracking-hint">Actualizações da mais recente à mais antiga, em hora de Luanda.</p>

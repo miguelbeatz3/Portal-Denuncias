@@ -56,6 +56,7 @@ class ReportResource extends Resource
     {
         return match ($state) {
             'Recebida' => 'warning',
+            'Encaminhada', 'Reencaminhada' => 'primary',
             'Em tratamento' => 'info',
             'Concluída' => 'success',
             'Denúncia Falsa' => 'danger',
@@ -93,8 +94,11 @@ class ReportResource extends Resource
             Filter::make('classified_as_false')->label('Apenas denúncias falsas')
                 ->visible(fn () => auth()->user()->role === 'admin')
                 ->query(fn (Builder $query) => $query->whereExists(self::falseClassification())),
+            Filter::make('pending_reassignment')->label('Pedidos de reencaminhamento pendentes')
+                ->visible(fn () => auth()->user()->role === 'admin')
+                ->query(fn (Builder $query) => auth()->user()->role === 'admin' ? $query->whereHas('pendingReassignmentRequest') : $query),
             SelectFilter::make('status')->label('Estado')
-                ->options(['Recebida' => 'Por triar', 'Em tratamento' => 'Em tratamento', 'Concluída' => 'Concluída', 'Arquivada' => 'Arquivada']),
+                ->options(Report::STATES),
             SelectFilter::make('entity_id')->label('Entidade')
                 ->options(fn () => Entity::orderBy('name')->pluck('name', 'id'))
                 ->visible(fn () => auth()->user()->role === 'admin'),
@@ -131,7 +135,20 @@ class ReportResource extends Resource
     {
         return [
             self::assignAction(),
-            self::reassignAction(),
+            self::reassignAction(detail: true),
+            self::declineReassignmentAction(),
+            Action::make('iniciarTratamento')->label('Iniciar tratamento')->icon(Heroicon::OutlinedPlay)->button()
+                ->visible(fn (Report $record) => auth()->user()->role === 'entity'
+                    && in_array($record->status, Report::AWAITING_TREATMENT, true))
+                ->requiresConfirmation()->modalDescription('O cidadão passará a ver o estado «Em tratamento».')
+                ->action(fn (Report $record) => ReportWorkflow::startTreatment($record, auth()->user())),
+            self::requestReassignmentAction(),
+            Action::make('enviarMensagem')->label('Enviar mensagem')->icon(Heroicon::OutlinedChatBubbleLeftRight)
+                ->button()->color('gray')->modalSubmitActionLabel('Enviar mensagem')
+                ->modalDescription('A mensagem fica visível ao denunciante e às equipas com acesso à denúncia.')
+                ->schema([Textarea::make('message')->label('Mensagem')->required()->maxLength(2000)])
+                ->successNotificationTitle('Mensagem enviada')
+                ->action(fn (Report $record, array $data) => ReportWorkflow::sendMessage($record, auth()->user(), $data['message'])),
             Action::make('arquivar')->label('Arquivar')->icon(Heroicon::OutlinedArchiveBox)->button()->color('gray')
                 ->visible(fn (Report $record) => auth()->user()->role === 'admin' && $record->status !== 'Arquivada')
                 ->modalHeading('Arquivar denúncia')->modalSubmitActionLabel('Confirmar arquivo')
@@ -142,7 +159,7 @@ class ReportResource extends Resource
                 ->action(fn (Report $record, array $data) => ReportWorkflow::archive($record, auth()->user(), $data['reason'])),
             Action::make('denunciaFalsa')->label('Denúncia Falsa')->icon(Heroicon::OutlinedFlag)->button()->color('danger')
                 ->visible(fn (Report $record) => auth()->user()->role === 'admin'
-                    && in_array($record->status, ['Recebida', 'Em tratamento'], true))
+                    && in_array($record->status, ['Recebida', ...Report::ACTIVE], true))
                 ->modalHeading('Classificar como denúncia falsa')
                 ->modalDescription('Esta decisão arquiva a denúncia. O cidadão verá o estado «Arquivada» e a classificação «Denúncia Falsa». O motivo fica no histórico administrativo.')
                 ->schema([
@@ -158,7 +175,7 @@ class ReportResource extends Resource
     private static function publishAction(): Action
     {
         return Action::make('actualizar')->label('Publicar actualização')
-                ->icon(Heroicon::OutlinedPencilSquare)
+                ->icon(Heroicon::OutlinedPencilSquare)->button()
                 ->visible(fn (Report $record) => auth()->user()->role === 'entity' && $record->status === 'Em tratamento')
                 ->schema([
                     Textarea::make('message')->label('Mensagem visível ao cidadão')->required()->maxLength(2000),
@@ -179,18 +196,50 @@ class ReportResource extends Resource
             ])->action(fn (Report $record, array $data) => ReportWorkflow::assign($record, auth()->user(), $data));
     }
 
-    private static function reassignAction(): Action
+    private static function reassignAction(bool $detail = false): Action
     {
-        return Action::make('reencaminhar')->label('Reencaminhar')->icon(Heroicon::OutlinedArrowsRightLeft)
-            ->visible(fn (Report $record) => auth()->user()->role === 'admin' && $record->status === 'Em tratamento')
-            ->fillForm(fn (Report $record) => ['previous_entity_id' => $record->entity_id])
+        return Action::make('reencaminhar')
+            ->label(fn (Report $record) => $detail && $record->pendingReassignmentRequest ? 'Aprovar e reencaminhar' : 'Reencaminhar')
+            ->icon(Heroicon::OutlinedArrowsRightLeft)->button()
+            ->visible(fn (Report $record) => auth()->user()->role === 'admin' && in_array($record->status, Report::ACTIVE, true))
+            ->fillForm(fn (Report $record) => ['previous_entity_id' => $record->entity_id,
+                'request_id' => $record->pendingReassignmentRequest?->id,
+                'entity_id' => $record->pendingReassignmentRequest?->suggested_entity_id])
             ->schema([
                 Hidden::make('previous_entity_id')->required(),
+                Hidden::make('request_id'),
                 Select::make('entity_id')->label('Nova entidade')->searchable()->required()
                     ->options(fn (Report $record) => Entity::destinations($record)),
-                Textarea::make('reason')->label('Motivo da correcção')->required()->maxLength(2000)
+                Textarea::make('reason')->label('Motivo do reencaminhamento')->required()->maxLength(2000)
                     ->helperText('Visível apenas no histórico administrativo.'),
             ])->action(fn (Report $record, array $data) => ReportWorkflow::reassign($record, auth()->user(), $data));
+    }
+
+    private static function requestReassignmentAction(): Action
+    {
+        return Action::make('solicitarReencaminhamento')->label('Solicitar reencaminhamento')
+            ->icon(Heroicon::OutlinedArrowsRightLeft)->button()->color('gray')
+            ->visible(fn (Report $record) => auth()->user()->role === 'entity' && in_array($record->status, Report::ACTIVE, true)
+                && !$record->pendingReassignmentRequest)
+            ->modalDescription('A Administração analisa o pedido. A denúncia mantém-se atribuída à sua entidade até à decisão.')
+            ->schema([
+                Select::make('suggested_entity_id')->label('Entidade sugerida (opcional)')->searchable()
+                    ->options(fn (Report $record) => Entity::destinations($record)),
+                Textarea::make('reason')->label('Motivo do pedido')->required()->maxLength(2000),
+            ])->action(fn (Report $record, array $data) => ReportWorkflow::requestReassignment($record, auth()->user(), $data));
+    }
+
+    private static function declineReassignmentAction(): Action
+    {
+        return Action::make('recusarReencaminhamento')->label('Recusar pedido')->icon(Heroicon::OutlinedXMark)->button()->color('gray')
+            ->visible(fn (Report $record) => auth()->user()->role === 'admin' && (bool) $record->pendingReassignmentRequest)
+            ->fillForm(fn (Report $record) => ['request_id' => $record->pendingReassignmentRequest?->id])
+            ->schema([
+                Hidden::make('request_id')->required(),
+                Textarea::make('reason')->label('Motivo da recusa')->required()->maxLength(2000)
+                    ->helperText('A entidade que fez o pedido poderá ler este motivo.'),
+            ])->action(fn (Report $record, array $data) => ReportWorkflow::declineReassignment(
+                $record, auth()->user(), (int) $data['request_id'], $data['reason']));
     }
 
     public static function details(Report $record): View
@@ -207,7 +256,11 @@ class ReportResource extends Resource
                     'event.reassignment_reason', 'event.false_report_reason', 'event.archive_reason');
         }
 
-        return view('details', ['report' => $record, 'events' => $events->get(), 'administrative' => $administrative]);
+        $requests = $record->reassignmentRequests()->with(['entity', 'suggestedEntity'])->latest('id')
+            ->when(!$administrative, fn (Builder $query) => $query->where('entity_id', auth()->user()->entity_id))->get();
+
+        return view('details', ['report' => $record, 'events' => $events->get(), 'administrative' => $administrative,
+            'reassignmentRequests' => $requests, 'messages' => $record->messages()->orderBy('id')->get()]);
     }
 
     public static function getPages(): array

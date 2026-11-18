@@ -1,0 +1,20 @@
+<?php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class ReportReassignmentRequest extends Model
+{
+    protected $guarded = ['id'];
+
+    public function entity(): BelongsTo
+    {
+        return $this->belongsTo(Entity::class);
+    }
+
+    public function suggestedEntity(): BelongsTo
+    {
+        return $this->belongsTo(Entity::class, 'suggested_entity_id');
+    }
+}

@@ -1,6 +1,6 @@
 * { box-sizing: border-box }
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --ink: light-dark(#01244d, #eef5fb);
   --accent: light-dark(#017277, #89dfe0);
   --teal: #018286;
@@ -9,7 +9,6 @@
   --surface: light-dark(white, #172d40);
   --button: light-dark(#017277, #016d71);
 }
-:root[data-theme=light] { color-scheme: light }
 :root[data-theme=dark] { color-scheme: dark }
 body { margin: 0; font: 17px/1.55 'Segoe UI',sans-serif; color: var(--ink); background: light-dark(#f4f8fa, #0d1b29); min-height: 100dvh; display: flex; flex-direction: column }
 body > header { background: light-dark(white, #01244d); border-top: 3px solid light-dark(var(--teal), #01244d); border-bottom: 1px solid light-dark(var(--line), #01244d) }
@@ -22,10 +21,6 @@ header :focus-visible { outline: 2px solid currentColor; outline-offset: 3px }
 .brand img.brand-dark { display: none }
 :root[data-theme=dark] .brand-light { display: none }
 :root[data-theme=dark] .brand-dark { display: block }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme=light]) .brand-light { display: none }
-  :root:not([data-theme=light]) .brand-dark { display: block }
-}
 header .theme-picker { display: inline-flex; align-items: center; gap: 2px; padding: 3px; min-height: 42px; border: 1px solid var(--line); border-radius: 24px; background: transparent }
 .theme-picker svg { width: 32px; height: 32px; padding: 6px; border-radius: 50%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
 .theme-picker svg:first-child { background: light-dark(#017277, transparent); color: light-dark(white, #bdcfde) }

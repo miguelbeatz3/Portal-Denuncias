@@ -1,5 +1,5 @@
 <?php
-use App\Models\{Category, Municipality, Report};
+use App\Models\{Category, Municipality, Report, ReportMessage};
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -65,10 +65,11 @@ Route::post('/reports', function (Request $request) {
     return response()->json(compact('reference', 'secret'), 201)->header('Cache-Control', 'no-store');
 })->middleware('throttle:10,1');
 
-Route::post('/tracking', function (Request $request) {
-    $credentials = $request->validate(['reference' => 'required|string|max:40', 'secret' => 'required|string|max:64']);
-    $report = Report::where('reference', strtoupper($credentials['reference']))
-        ->where('secret_hash', hash('sha256', strtoupper($credentials['secret'])))->first();
+$trackingCredentials = ['reference' => 'required|string|max:40', 'secret' => 'required|string|max:64'];
+
+Route::post('/tracking', function (Request $request) use ($trackingCredentials) {
+    $credentials = $request->validate($trackingCredentials);
+    $report = Report::withTrackingCredentials($credentials['reference'], $credentials['secret'])->first();
     abort_unless($report, 404, 'Verifique a referência e o código.');
     return response()->json([
         'reference' => $report->reference,
@@ -77,5 +78,20 @@ Route::post('/tracking', function (Request $request) {
         'classified_as_false' => DB::table('report_events')->where('report_id', $report->id)
             ->whereNotNull('false_report_reason')->exists(),
         'events' => DB::table('report_events')->where('report_id', $report->id)->orderBy('id')->get(['message', 'created_at']),
+        'messages' => $report->messages()->orderBy('id')->get()->map(fn (ReportMessage $message) => $message->forTracking()),
     ])->header('Cache-Control', 'no-store');
 })->middleware('throttle:30,1');
+
+Route::post('/tracking/messages', function (Request $request) use ($trackingCredentials) {
+    $data = $request->validate($trackingCredentials + ['message' => 'required|string|max:2000', 'message_id' => 'required|uuid']);
+    $message = DB::transaction(function () use ($data) {
+        $report = Report::withTrackingCredentials($data['reference'], $data['secret'])->lockForUpdate()->first();
+        abort_unless($report, 404, 'Verifique a referência e o código.');
+        $message = $report->messages()->firstOrCreate(['client_token' => strtolower($data['message_id'])],
+            ['sender' => 'citizen', 'message' => trim($data['message'])]);
+        abort_if($message->message !== trim($data['message']), 409);
+        return $message;
+    });
+
+    return response()->json($message->forTracking(), 201)->header('Cache-Control', 'no-store');
+})->middleware('throttle:10,1,report-messages:');

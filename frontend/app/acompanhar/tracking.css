@@ -11,6 +11,7 @@
 .tracking-overview { border-color: var(--status-color, var(--accent)); background: var(--surface) }
 .tracking-overview h2 { color: var(--status-color, var(--ink)) }
 .tracking-overview[data-status="Recebida"] { --status-color: light-dark(#875300, #ffd580) }
+.tracking-overview[data-status="Encaminhada"], .tracking-overview[data-status="Reencaminhada"] { --status-color: var(--accent) }
 .tracking-overview[data-status="Em tratamento"] { --status-color: light-dark(#17578c, #91cdff) }
 .tracking-overview[data-status="Concluída"] { --status-color: light-dark(#226444, #86e5ae) }
 .tracking-overview[data-status="Arquivada"] { --status-color: light-dark(#505f70, #c2ccda) }
@@ -18,6 +19,17 @@
 .tracking-classification strong { display: inline-block; border-radius: 20px; padding: 3px 12px; background: light-dark(#ffe2e1, #642527); color: light-dark(#92252a, #ffd5d4) }
 .tracking-description { padding-bottom: 18px; border-bottom: 1px solid var(--line) }
 .tracking-description p { margin-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere }
+.tracking-conversation { display: grid; gap: 14px; min-width: 0; padding-bottom: 18px; border-bottom: 1px solid var(--line) }
+.tracking-conversation-heading, .tracking-message-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px }
+.tracking-conversation-heading button { padding: 6px 10px; font-size: .88rem }
+.tracking-messages { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none }
+.tracking-messages li { margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px }
+.tracking-messages li[data-sender=citizen] { background: light-dark(#eaf7f7, #194247) }
+.tracking-messages header { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px 12px }
+.tracking-messages time { color: var(--muted); font-size: .84rem }
+.tracking-messages p { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere }
+.tracking-conversation form { gap: 10px; padding: 0; border: 0; background: transparent }
+.tracking-message-actions button { margin-inline-start: auto }
 .tracking-reference { display: grid; margin: 0; font-size: .92rem }
 .tracking-reference strong { font-family: monospace; font-size: 1.05rem; overflow-wrap: anywhere }
 .tracking-again { margin-top: 20px; background: transparent; color: var(--accent); padding: 8px 12px; font-size: .92rem }

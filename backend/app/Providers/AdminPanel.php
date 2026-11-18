@@ -6,6 +6,7 @@ use App\Filament\AdministratorResource;
 use App\Http\Middleware\CheckPanelSession;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
+use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\{DisableBladeIconComponents, DispatchServingFilamentEvent};
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -23,6 +24,7 @@ class AdminPanel extends PanelProvider
             ->brandName('Portal de Denúncias · Administração')
             ->brandLogo(fn () => view('panels.brand', ['area' => 'Administração']))
             ->brandLogoHeight('auto')
+            ->defaultThemeMode(ThemeMode::Light)
             ->colors(['primary' => Color::hex('#018286')])
             ->maxContentWidth(Width::Full)
             ->sidebarWidth('17rem')

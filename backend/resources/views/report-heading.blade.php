@@ -3,6 +3,8 @@
     <x-filament::badge class="rd-status" :color="\App\Filament\ReportResource::badgeColor($report->status)"
         :icon="match ($report->status) {
             'Recebida' => 'heroicon-o-inbox',
+            'Encaminhada' => 'heroicon-o-paper-airplane',
+            'Reencaminhada' => 'heroicon-o-arrows-right-left',
             'Em tratamento' => 'heroicon-o-clock',
             'Concluída' => 'heroicon-o-check-circle',
             'Arquivada' => 'heroicon-o-archive-box',

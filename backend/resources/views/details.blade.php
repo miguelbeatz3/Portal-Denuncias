@@ -71,6 +71,46 @@
         </section>
     </div>
 
+    <section class="rd-history" aria-labelledby="messages-title">
+        <div class="rd-history-title">
+            <h2 id="messages-title">Mensagens da denúncia</h2>
+            <small>Hora de Luanda</small>
+        </div>
+        @if ($messages->isEmpty())
+            <p>Ainda não há mensagens nesta denúncia.</p>
+        @else
+            <ol>
+                @foreach ($messages as $message)
+                    <li>
+                        <strong>{{ $message->senderLabel() }}</strong>
+                        <time datetime="{{ $message->created_at->toISOString() }}">{{ $message->created_at->timezone('Africa/Luanda')->format('d/m/Y H:i') }}</time>
+                        <p class="rd-text">{{ $message->message }}</p>
+                    </li>
+                @endforeach
+            </ol>
+        @endif
+    </section>
+
+    @if ($reassignmentRequests->isNotEmpty())
+        <section class="rd-history">
+            <h2>Pedidos de reencaminhamento</h2>
+            <ol>
+                @foreach ($reassignmentRequests as $request)
+                    <li>
+                        <time>{{ $request->created_at->timezone('Africa/Luanda')->format('d/m/Y H:i') }}</time>
+                        <p><strong>{{ $request->resolution ?? 'A aguardar decisão' }}</strong> · {{ $request->entity->name }}</p>
+                        @if ($request->suggestedEntity)
+                            <p>Entidade sugerida: {{ $request->suggestedEntity->name }}</p>
+                        @endif
+                        <p class="rd-text">Motivo do pedido: {{ $request->reason }}</p>
+                        @if ($request->response)
+                            <p class="rd-text">Resposta da Administração: {{ $request->response }}</p>
+                        @endif
+                    </li>
+                @endforeach
+            </ol>
+        </section>
+    @endif
     <section class="rd-history">
         <div class="rd-history-title">
             <h2>{{ $administrative ? 'Histórico administrativo' : 'Histórico público' }}</h2>

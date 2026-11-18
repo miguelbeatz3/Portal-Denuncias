@@ -24,6 +24,11 @@
                 </a>
             @endforeach
         </div>
+        @if ($pendingReassignments)
+            <x-filament::button tag="a" color="gray" :href="\App\Filament\ReportResource::getUrl('index', ['filters' => ['pending_reassignment' => ['isActive' => 1]]])">
+                Pedidos de reencaminhamento pendentes ({{ $pendingReassignments }})
+            </x-filament::button>
+        @endif
         <section class="pd-section">
             <h2>Denúncias recebidas</h2>
             <p>{{ $rangeLabel }}</p>
@@ -81,24 +86,24 @@
         </section>
         <div @class(['pd-columns' => $admin])>
             <section class="pd-section">
-                <h2>{{ $admin ? 'Fila de triagem' : 'Denúncias em tratamento' }}</h2>
+                <h2>{{ $admin ? 'Fila de triagem' : 'Denúncias em aberto' }}</h2>
                 @if ($queue->isNotEmpty())
                     <p>As denúncias mais antigas aparecem primeiro.</p>
                     <ul>
                         @foreach ($queue as $report)
                             <li><a class="pd-row" href="{{ \App\Filament\ReportResource::getUrl('view', ['record' => $report]) }}">
-                                <span><strong>{{ $report->reference }}</strong><small>{{ $report->category ?? 'Por classificar' }} · {{ $report->municipality ?? 'Município por indicar' }}</small></span>
+                                <span><strong>{{ $report->reference }}</strong><small>{{ $report->category ?? 'Por classificar' }} · {{ $report->municipality ?? 'Município por indicar' }}@unless ($admin) · {{ $report->status }}@endunless</small></span>
                                 <time>{{ $report->created_at->timezone('Africa/Luanda')->format('d/m/Y H:i') }}</time>
                             </a></li>
                         @endforeach
                     </ul>
                 @else
-                    <p>{{ $admin ? 'Não há denúncias a aguardar triagem.' : 'Não há denúncias em tratamento neste período.' }}</p>
+                    <p>{{ $admin ? 'Não há denúncias a aguardar triagem.' : 'Não há denúncias em aberto neste período.' }}</p>
                 @endif
                 @if ($admin)
                     <x-filament::button tag="a" :href="\App\Filament\TriageResource::getUrl('index', ['filters' => $dates])">Abrir fila de triagem</x-filament::button>
                 @else
-                    <x-filament::button tag="a" :href="\App\Filament\ReportResource::getUrl('index', ['filters' => $dates + ['status' => ['value' => 'Em tratamento']]])">Ver denúncias em tratamento</x-filament::button>
+                    <x-filament::button tag="a" :href="\App\Filament\ReportResource::getUrl('index', ['filters' => $dates])">Ver denúncias da entidade</x-filament::button>
                 @endif
             </section>
             @if ($admin)

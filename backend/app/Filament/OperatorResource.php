@@ -36,6 +36,7 @@ class OperatorResource extends Resource
                 ->placeholder('Seleccione a entidade')->searchPrompt('Escreva o nome da entidade')
                 ->required()->exists('entities', 'id'),
             TextInput::make('password')->label('Palavra-passe')->password()->autocomplete('new-password')
+                ->revealable(fn (string $operation): bool => $operation === 'create')
                 ->required(fn (string $operation): bool => $operation === 'create')
                 ->minLength(12)->maxLength(72)->afterStateHydrated(fn (TextInput $component) => $component->state(null))
                 ->dehydrated(fn (?string $state): bool => filled($state))

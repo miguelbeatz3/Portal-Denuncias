@@ -40,7 +40,7 @@
 .pd-count span, .pd-work span:first-child { display: flex; align-items: center; gap: .5rem; font-weight: 600; }
 .pd-count strong { font-size: 2.1rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .pd-dot { width: .65rem; height: .65rem; border-radius: 50%; background: var(--gray-500); }
-.pd-warning { background: var(--warning-500); } .pd-info { background: var(--info-500); } .pd-success { background: var(--success-500); }
+.pd-warning { background: var(--warning-500); } .pd-primary { background: var(--primary-500); } .pd-info { background: var(--info-500); } .pd-success { background: var(--success-500); }
 .pd-section h2 { font-size: 1.15rem; font-weight: 700; }
 .pd-section p, .pd-row small, .pd-row time { font-size: .875rem; color: var(--gray-600); }
 .dark .pd-section :is(p,small,time) { color: var(--gray-300); }

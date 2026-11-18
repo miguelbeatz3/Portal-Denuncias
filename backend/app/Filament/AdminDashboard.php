@@ -47,7 +47,7 @@ class AdminDashboard extends Dashboard
         $dates = ['received' => ['from' => $start->toDateString(), 'until' => $end->toDateString()]];
         $counts = (clone $base)->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
         $cards = [];
-        foreach (['Recebida' => 'Por triar', 'Em tratamento' => 'Em tratamento', 'Concluída' => 'Concluídas', 'Arquivada' => 'Arquivadas'] as $status => $label) {
+        foreach (Report::STATES as $status => $label) {
             if (!$admin && $status === 'Recebida') continue;
             $cards[] = [
                 'label' => $label, 'total' => $counts[$status] ?? 0, 'colour' => ReportResource::badgeColor($status),
@@ -97,7 +97,8 @@ class AdminDashboard extends Dashboard
             'rangeLabel' => $start->format('d/m/Y').' – '.$end->format('d/m/Y'),
             'cards' => $cards,
             'admin' => $admin,
-            'queue' => (clone $base)->where('status', $admin ? 'Recebida' : 'Em tratamento')->oldest()->orderBy('id')->limit(5)->get(),
+            'pendingReassignments' => $admin ? Report::whereHas('pendingReassignmentRequest')->count() : 0,
+            'queue' => (clone $base)->whereIn('status', $admin ? ['Recebida'] : Report::ACTIVE)->oldest()->orderBy('id')->limit(5)->get(),
             'workload' => $admin ? (clone $base)->where('status', 'Em tratamento')->whereNotNull('entity_id')
                 ->selectRaw('entity_id, count(*) as total')->with('entity:id,name')
                 ->groupBy('entity_id')->orderByDesc('total')->orderBy('entity_id')->limit(5)->get() : null,
