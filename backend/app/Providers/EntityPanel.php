@@ -22,6 +22,8 @@ class EntityPanel extends PanelProvider
             ->brandLogoHeight('auto')
             ->colors(['primary' => Color::hex('#018286')])
             ->maxContentWidth(Width::Full)
+            ->sidebarWidth('17rem')
+            ->sidebarFullyCollapsibleOnDesktop()
             ->pages([\App\Filament\AdminDashboard::class, \App\Filament\AdminReports::class])
             ->navigationGroups(['Denúncias'])
             ->renderHook(PanelsRenderHook::HEAD_END, fn () => view('panels.sidebar-styles'))

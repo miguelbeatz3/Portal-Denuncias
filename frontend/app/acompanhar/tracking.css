@@ -26,10 +26,10 @@
 .tracking-timeline li:not(:last-child)::after { content: ''; position: absolute; left: 5px; top: 13px; bottom: -9px; border-left: 2px solid var(--line) }
 .tracking-timeline li::before { content: ''; position: absolute; left: 1px; top: 8px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent) }
 .tracking-timeline li:last-child { padding-bottom: 0 }
-.tracking-timeline li p { margin-top: 4px; white-space: pre-line }
+.tracking-timeline li p { margin-top: 4px; white-space: pre-line; overflow-wrap: anywhere }
 .tracking-error { margin: 0; border-inline-start: 3px solid currentColor; padding-inline-start: 12px }
 .tracking :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px }
-@media (max-width: 700px) {
+@media (max-width: 900px) {
   .tracking-entry, .tracking-result { grid-template-columns: 1fr; gap: 20px }
   .tracking-guide { max-width: none }
 }

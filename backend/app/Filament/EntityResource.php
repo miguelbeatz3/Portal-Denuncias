@@ -52,10 +52,10 @@ class EntityResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            TextColumn::make('name')->label('Nome')->searchable()->sortable(),
-            TextColumn::make('municipality.name')->label('Município')->placeholder('Por indicar')->searchable(),
+            TextColumn::make('name')->label('Nome')->searchable()->sortable()->wrap(),
+            TextColumn::make('municipality.name')->label('Município')->placeholder('Por indicar')->searchable()->wrap(),
             TextColumn::make('service_scope')->label('Âmbito')->placeholder('Por indicar')
-                ->formatStateUsing(fn (string $state) => Entity::SCOPES[$state] ?? $state),
+                ->formatStateUsing(fn (string $state) => Entity::SCOPES[$state] ?? $state)->wrap(),
             TextColumn::make('accepts_reports')->label('Estado')->badge()
                 ->formatStateUsing(fn (bool $state) => $state ? 'Activa' : 'Inactiva')
                 ->color(fn (bool $state) => $state ? 'success' : 'gray'),

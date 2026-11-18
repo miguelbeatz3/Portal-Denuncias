@@ -43,8 +43,8 @@ class AdministratorResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->description('Contas com acesso ao painel de Administração.')->columns([
-            TextColumn::make('name')->label('Nome')->searchable()->sortable(),
-            TextColumn::make('email')->label('E-mail')->searchable(),
+            TextColumn::make('name')->label('Nome')->searchable()->sortable()->wrap(),
+            TextColumn::make('email')->label('E-mail')->searchable()->wrap(),
             TextColumn::make('phone')->label('Telefone')->placeholder('Por indicar'),
             TextColumn::make('estado')->label('Estado')->badge()
                 ->state(fn (Administrator $record) => $record->suspended_at === null ? 'Activo' : 'Suspenso')

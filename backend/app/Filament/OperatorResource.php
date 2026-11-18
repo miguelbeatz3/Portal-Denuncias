@@ -46,10 +46,10 @@ class OperatorResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            TextColumn::make('name')->label('Nome')->searchable()->sortable(),
-            TextColumn::make('email')->label('E-mail')->searchable(),
+            TextColumn::make('name')->label('Nome')->searchable()->sortable()->wrap(),
+            TextColumn::make('email')->label('E-mail')->searchable()->wrap(),
             TextColumn::make('phone')->label('Telefone')->placeholder('Por indicar'),
-            TextColumn::make('entity.name')->label('Entidade')->sortable(),
+            TextColumn::make('entity.name')->label('Entidade')->sortable()->wrap(),
             TextColumn::make('estado')->label('Estado')->badge()
                 ->state(fn (Operator $record) => $record->suspended_at === null ? 'Activo' : 'Suspenso')
                 ->color(fn (Operator $record) => $record->suspended_at === null ? 'success' : 'danger'),

@@ -4,7 +4,7 @@ Protótipo académico com uma interface pública Next.js e dois painéis Filamen
 
 ## Executar localmente
 
-São necessários PHP 8.4 com as extensões intl, mbstring e PDO para a base escolhida, Composer, Node.js 24 e npm. Execute os comandos a partir da raiz do repositório em PowerShell.
+São necessários PHP 8.3 ou superior com as extensões intl, mbstring e PDO para a base escolhida, Composer, Node.js 24 e npm. O Composer usa PHP 8.3.0 como referência para manter as dependências compatíveis com essa versão. Execute os comandos a partir da raiz do repositório em PowerShell.
 
 ### API e painéis
 

@@ -23,6 +23,8 @@ class AdminPanel extends PanelProvider
             ->brandLogoHeight('auto')
             ->colors(['primary' => Color::hex('#018286')])
             ->maxContentWidth(Width::Full)
+            ->sidebarWidth('17rem')
+            ->sidebarFullyCollapsibleOnDesktop()
             ->pages([\App\Filament\AdminDashboard::class, \App\Filament\AdminReports::class])
             ->renderHook(PanelsRenderHook::HEAD_END, fn () => view('panels.sidebar-styles'))
             ->resources([TriageResource::class, ReportResource::class, EntityResource::class, OperatorResource::class,

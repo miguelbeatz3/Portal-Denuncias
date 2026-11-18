@@ -34,21 +34,18 @@
 .credentials dd { font: 650 1.1rem/1.6 monospace; letter-spacing: .035em }
 .register-card [role=status] { margin: 0 }
 .register-card [role=status]:empty { display: none }
-@media (max-width: 740px) {
+@media (max-width: 900px) {
   .registration { grid-template-columns: 1fr; gap: 22px }
   .registration .back-home { margin-bottom: 12px }
   .progress-list { display: flex; gap: 6px; margin-top: 15px; flex-wrap: wrap }
   .progress-list li:not([aria-current]) { font-size: 0; gap: 0 }
   .progress-list span { font-size: .84rem }
 }
+@media (max-width: 520px) {
+  .register-actions > button { flex: 1 1 100%; }
+}
 @media (max-width: 390px) {
   .mode-grid { grid-template-columns: 1fr }
-}
-@media print {
-  body:has(.credentials) header,body:has(.credentials) footer,.registration a,.registration button,.registration [role=status] { display: none }
-  .registration { display: block }
-  .registration-guide { margin-bottom: 20px }
-  .register-card { box-shadow: none; break-inside: avoid }
 }
 .evidence-upload input[hidden] { display: none }
 .evidence-drop { display: grid; width: 100%; justify-items: center; gap: 3px; margin: 12px 0 6px; padding: 18px; border: 2px dashed var(--line); border-radius: 12px; background: light-dark(#f3f9fa, #142c3b); color: var(--accent) }

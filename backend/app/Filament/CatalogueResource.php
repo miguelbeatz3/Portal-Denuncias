@@ -31,7 +31,7 @@ abstract class CatalogueResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->defaultSort('name')->columns([
-            TextColumn::make('name')->label('Nome')->searchable()->sortable(),
+            TextColumn::make('name')->label('Nome')->searchable()->sortable()->wrap(),
             ...(static::getModel() === \App\Models\Category::class ? [
                 TextColumn::make('description')->label('Descrição')->wrap(),
             ] : []),

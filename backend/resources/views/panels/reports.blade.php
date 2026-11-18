@@ -34,7 +34,7 @@
                     </div>
                 </div>
                 @if ($rows)
-                    <div class="pd-report-scroll"><table class="pd-report-table">
+                    <div class="pd-report-scroll" tabindex="0" role="region" aria-label="Resultados do relatório de denúncias"><table class="pd-report-table">
                         <thead><tr><th scope="col">{{ $groups[$filters['group']] }}</th>
                             @foreach ($states as $label)<th scope="col">{{ $label }}</th>@endforeach@if ($administrative)<th scope="col">Denúncias falsas</th>@endif <th scope="col">Total</th></tr></thead>
                         <tbody>@foreach ($rows as $row)<tr><th scope="row">{{ $row['label'] }}</th>

@@ -68,9 +68,9 @@ class ReportResource extends Resource
         return [
             TextColumn::make('reference')->label('Referência')->searchable(),
             TextColumn::make('created_at')->label('Data de recepção')->dateTime('d/m/Y H:i', 'Africa/Luanda'),
-            TextColumn::make('category')->label('Categoria')->placeholder('Por classificar'),
+            TextColumn::make('category')->label('Categoria')->placeholder('Por classificar')->wrap(),
             TextColumn::make('entity.name')->label('Entidade')->placeholder('Por atribuir')
-                ->visible(fn () => auth()->user()->role === 'admin' && $showEntity),
+                ->visible(fn () => auth()->user()->role === 'admin' && $showEntity)->wrap(),
             TextColumn::make('municipality')->label('Município')->placeholder('Não indicado')->wrap(),
             TextColumn::make('location')->label('Local')->wrap(),
             TextColumn::make('status')->label('Estado')->badge()
@@ -88,7 +88,7 @@ class ReportResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table->defaultSort('id', 'desc')->columns(static::reportColumns(static::class === self::class))->filters([
+        return $table->extraAttributes(['class' => 'pd-reports-table'])->defaultSort('id', 'desc')->columns(static::reportColumns(static::class === self::class))->filters([
             self::receivedFilter(),
             Filter::make('classified_as_false')->label('Apenas denúncias falsas')
                 ->visible(fn () => auth()->user()->role === 'admin')

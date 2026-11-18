@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { submit } from '../request';
 import { EvidenceUpload } from './evidence-upload';
+import { RegistrationReceipt, type ReceiptData } from './registration-receipt';
 import './registo.css';
 
-type Receipt = { reference: string; secret: string };
 type Category = { name: string; description: string | null };
 type Step = 'details' | 'review' | 'done';
 const questions = [
@@ -37,7 +37,7 @@ export default function Register() {
   const [municipalities, setMunicipalities] = useState<string[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, retry] = useState(0);
-  const [receipt, setReceipt] = useState<Receipt>();
+  const [receipt, setReceipt] = useState<ReceiptData>();
   const [error, setError] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -121,7 +121,9 @@ export default function Register() {
       files.forEach(file => payload.append('evidence_files[]', file));
     }
     try {
-      setReceipt(await submit('reports', payload));
+      const result = await submit('reports', payload);
+      setReceipt({ ...result, issuedAt: new Date().toISOString(), subject: category?.trim() || 'Por classificar na triagem',
+        municipality: municipality.trim(), location: location.trim(), occurredOn: date });
       setFiles([]);
       setStep('done');
     } catch (e) {
@@ -245,10 +247,8 @@ export default function Register() {
       <div className="register-actions"><button type="button" className="secondary" disabled={busy} onClick={() => { setError(''); setQuestion(0); setStep('details'); }}>Editar dados</button>
         <button type="button" disabled={busy} onClick={register}>{busy ? 'A enviar…' : 'Submeter denúncia'}</button></div>
     </div>}
-    {step === 'done' && receipt && <div className="register-card">
-      <h2>Comprovativo de registo</h2>
-      <dl className="summary credentials"><div><dt>Referência</dt><dd>{receipt.reference}</dd></div>
-        <div><dt>Código secreto</dt><dd>{receipt.secret}</dd></div></dl>
+    {step === 'done' && receipt && <div className="register-card receipt-card">
+      <RegistrationReceipt {...receipt} />
       <div className="register-actions"><button type="button" onClick={copyReceipt}>Copiar dados</button>
         <button type="button" className="secondary" onClick={() => window.print()}>Imprimir comprovativo</button></div>
       <p role="status">{copyStatus}</p>

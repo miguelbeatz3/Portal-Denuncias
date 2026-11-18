@@ -1,16 +1,16 @@
 .pd-dashboard { --pd-line: color-mix(in srgb, currentColor 17%, transparent); display: grid; gap: 1.25rem; }
 .pd-counts, .pd-columns { display: grid; gap: 1rem; }
 .pd-report-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
-.pd-report-scroll { overflow-x: auto; }
+.pd-report-scroll { overflow-x: auto; max-width: 100%; }
 .pd-exports { display: flex; gap: .5rem; flex-wrap: wrap; }
-.pd-report-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.pd-report-table { border-collapse: collapse; width: 100%; min-width: 48rem; font-variant-numeric: tabular-nums; }
 .pd-report-table :is(td,th) { border-bottom: 1px solid var(--pd-line); text-align: end; padding: .65rem; }
 .pd-report-table th:first-child { text-align: start; }
 .pd-report-table tfoot { font-weight: 700; }
 .pd-section .pd-period label { max-width: 100%; }
-.pd-period { display: flex; flex-wrap: wrap; gap: .85rem; align-items: end; }
-.pd-period label { display: grid; gap: .3rem; font-size: .9rem; font-weight: 600; }
-.pd-period :is(select,input) { padding: .45rem .75rem; border: 1px solid var(--pd-line); border-radius: .5rem; background: white; color: inherit; }
+.pd-period { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .85rem; align-items: end; }
+.pd-period label { display: grid; min-width: 0; gap: .3rem; font-size: .9rem; font-weight: 600; }
+.pd-period :is(select,input) { width: 100%; min-width: 0; min-height: 2.75rem; padding: .45rem .75rem; border: 1px solid var(--pd-line); border-radius: .5rem; background: white; color: inherit; }
 .dark .pd-period :is(select,input) { background: var(--gray-900); color-scheme: dark; }
 .pd-chart-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1rem; justify-content: space-between; margin-bottom: 1rem; }
 .pd-chart-summary strong { font-size: 1.7rem; font-variant-numeric: tabular-nums; }
@@ -55,4 +55,6 @@
 .pd-track i { height: .35rem; background: #018286; }
 .pd-count:hover, .pd-row:hover, .pd-work:hover { background: color-mix(in srgb, #018286 9%, transparent); }
 .pd-dashboard a:focus-visible { outline: 2px solid #018286; outline-offset: 2px; }
-@media (max-width: 800px) { .pd-counts { grid-template-columns: repeat(2,minmax(0,1fr)); } .pd-columns { grid-template-columns: 1fr; } }
+@media (max-width: 1535px) { .pd-counts { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media (max-width: 639px) { .pd-counts { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 379px) { .pd-counts { grid-template-columns: 1fr; } }

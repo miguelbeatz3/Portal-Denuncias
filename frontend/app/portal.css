@@ -50,7 +50,7 @@ h1 { font: 700 clamp(36px,6vw,66px)/1.07 'Segoe UI',sans-serif; letter-spacing: 
 .region, small { color: var(--muted) } .region { font-weight: 650 }
 form, article, dl { display: grid; gap: 18px; background: var(--surface); padding: clamp(16px,4vw,32px); border: 1px solid var(--line); border-radius: 12px }
 label, legend, dt { font-weight: 600 }
-input:not([type=radio]), select, textarea { display: block; width: 100%; margin-top: 5px; padding: 11px; font: inherit; color: inherit; background: var(--surface); border: 1px solid #8497a9; border-radius: 5px }
+input:not([type=radio]), select, textarea { display: block; width: 100%; min-width: 0; margin-top: 5px; padding: 11px; font: inherit; color: inherit; background: var(--surface); border: 1px solid #8497a9; border-radius: 5px }
 fieldset { border: 0; padding: 0; margin: 0 } fieldset label { margin-right: 16px; font-weight: normal }
 button,.primary,.secondary { display: inline-block; padding: 12px 20px; border-radius: 6px; border: 1px solid var(--accent); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer }
 button,.primary { background: var(--button); color: white } button:disabled { opacity: .6 }

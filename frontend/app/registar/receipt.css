@@ -1,0 +1,55 @@
+.receipt-card { gap: 24px }
+.receipt-document { min-width: 0; color: var(--ink); font-size: .94rem; line-height: 1.55 }
+.receipt-document p { margin: 0 }
+.receipt-brand { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 22px; border-bottom: 2px solid var(--teal) }
+.receipt-brand img { width: 165px; height: auto; background: white; border-radius: 4px; padding: 6px }
+.receipt-brand > span { color: var(--muted); font-size: .8rem; text-align: right }
+.receipt-heading { padding-block: 24px }
+.receipt-document .receipt-eyebrow { color: var(--accent); font-size: .72rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 8px }
+.registration .receipt-document h2 { font-size: 1.55rem; margin-bottom: 12px }
+.receipt-document .receipt-date { color: var(--muted); font-size: .8rem; margin-top: 10px }
+.receipt-document .receipt-credentials { margin: 0; padding: 0; display: grid; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: transparent }
+.receipt-credentials > div { padding: 18px 20px }
+.receipt-credentials > div + div { border-top: 1px solid var(--line) }
+.receipt-credentials dt { font-size: .8rem; color: var(--muted); margin-bottom: 6px }
+.receipt-credentials dd { font: 700 clamp(17px, 2.5vw, 23px)/1.45 ui-monospace, 'SFMono-Regular', Consolas, monospace; letter-spacing: .025em; overflow-wrap: anywhere }
+.receipt-security { margin-top: 18px; border-left: 3px solid var(--teal); padding: 10px 14px; background: light-dark(#f0f7f7, #12252e); font-size: .83rem }
+.receipt-security strong { display: block; margin-bottom: 4px }
+.receipt-report { padding-block: 24px }
+.receipt-report h3 { font-size: 1rem; margin: 0 0 14px }
+.receipt-document .receipt-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent }
+.receipt-detail-wide { grid-column: 1 / -1 }
+.receipt-details dt { font-size: .8rem; color: var(--muted); margin-bottom: 4px }
+.receipt-details dd { font: inherit; font-weight: 500; overflow-wrap: anywhere; white-space: pre-wrap }
+.receipt-footnote { border-top: 1px solid var(--line); padding-top: 16px; color: var(--muted); font-size: .76rem }
+.receipt-footnote span { display: block; margin-top: 16px; font-weight: 600 }
+@page { size: A4 portrait; margin: 18mm }
+@media print {
+  body:has(.receipt-document) { display: block; min-height: 0; background: white; color: #152b3a; font: 11pt/1.5 Arial, sans-serif }
+  body:has(.receipt-document) > header,
+  body:has(.receipt-document) > footer,
+  body:has(.receipt-document) .registration-guide,
+  .receipt-card > :not(.receipt-document) { display: none !important }
+  body:has(.receipt-document) main { width: auto; max-width: none; margin: 0; padding: 0 }
+  body:has(.receipt-document) .registration { display: block; margin: 0; padding: 0 }
+  .registration .receipt-card { display: block; padding: 0; border: 0; border-radius: 0; background: white; box-shadow: none }
+  .receipt-document { --ink: #152b3a; --muted: #455563; --accent: #005b60; --teal: #005b60; --line: #bcc6cc; color: #152b3a; font-size: 10.5pt; break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact }
+  .receipt-brand { padding-bottom: 7mm }
+  .receipt-brand img { width: 52mm; padding: 0; border-radius: 0 }
+  .receipt-brand > span { font-size: 9pt }
+  .receipt-heading { padding-block: 8mm }
+  .registration .receipt-document h2 { font: 700 23pt/1.2 Arial, sans-serif; letter-spacing: -.025em; margin-bottom: 3mm }
+  .receipt-document .receipt-eyebrow { font-size: 8pt }
+  .receipt-document .receipt-date { font-size: 9pt }
+  .receipt-credentials > div { padding: 5mm 6mm }
+  .receipt-credentials dt { font-size: 9pt }
+  .receipt-credentials dd { font-size: 20pt; letter-spacing: .04em }
+  .receipt-security { background: #f3f6f6; margin-top: 6mm; padding: 4mm 5mm; font-size: 9.5pt }
+  .receipt-report { padding-block: 6mm }
+  .receipt-report h3 { font-size: 12pt; margin-bottom: 4mm }
+  .receipt-document .receipt-details { gap: 4mm 6mm }
+  .receipt-details dt { font-size: 9pt }
+  .receipt-details dd { font-size: 10.5pt }
+  .receipt-footnote { padding-top: 4mm; font-size: 8.5pt }
+  .receipt-footnote span { margin-top: 5mm }
+}
