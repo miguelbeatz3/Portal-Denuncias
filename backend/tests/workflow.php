@@ -259,6 +259,8 @@ check(str_contains($filtered, $report->reference) && !str_contains($filtered, 'L
     && !str_contains($filtered, $older->reference), 'Combined entity and category filters');
 $correctionReceipt = postJson('reports', $input, 201);
 $correction = Report::where('reference', $correctionReceipt['reference'])->firstOrFail();
+$adminNote = 'Diligência reservada da Administração.';
+ReportWorkflow::addInternalNote($correction, $users['admin'], $adminNote);
 ReportWorkflow::sendMessage($correction, $users['admin'], 'Pode indicar a hora em que ocorreu?');
 $citizenReply = $correctionReceipt + ['message' => 'Ocorreu pelas 10h.', 'message_id' => (string) \Illuminate\Support\Str::uuid()];
 postJson('tracking/messages', array_replace($citizenReply, ['secret' => $receipt['secret']]), 404);
@@ -271,6 +273,22 @@ postJson('tracking/messages', array_replace($citizenReply, ['message' => 'Outro 
 check(postJson('tracking', $receipt, 200)['messages'] === [], 'Conversation leaked to another report');
 Entity::findOrFail($entity)->update(['accepts_reports' => true]);
 ReportWorkflow::assign($correction, $users['admin'], ['category' => 'Outro assunto', 'entity_id' => $entity]);
+$entityNote = 'Diligência reservada da entidade. <b>Texto literal</b>';
+ReportWorkflow::addInternalNote($correction, $users['operador'], '  '.$entityNote.'  ');
+$latestNote = $correction->internalNotes()->latest('id')->firstOrFail();
+check($latestNote->author_id === $users['operador']->id && $latestNote->author_name === $users['operador']->name
+    && $latestNote->body === $entityNote && $latestNote->created_at !== null, 'Internal note attribution, body or date missing');
+DB::table('report_internal_notes')->where('id', $latestNote->id)->update(['created_at' => '2026-01-01 12:00:00']);
+foreach (['   ', str_repeat('a', 4001)] as $invalidNote) {
+    try {
+        ReportWorkflow::addInternalNote($correction, $users['operador'], $invalidNote);
+        throw new RuntimeException('Invalid internal note accepted');
+    } catch (\Illuminate\Validation\ValidationException $e) { check(isset($e->errors()['body']), 'Unexpected note validation'); }
+}
+try {
+    ReportWorkflow::addInternalNote($correction, $users['outro'], 'Tentativa de outra entidade.');
+    throw new RuntimeException('A different entity added an internal note');
+} catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected cross-entity note denial'); }
 ReportWorkflow::sendMessage($correction, $users['operador'], 'Recebemos a sua resposta.');
 try {
     ReportWorkflow::sendMessage($correction, $users['outro'], 'Mensagem de outra entidade.');
@@ -281,6 +299,8 @@ check($conversation['status'] === 'Encaminhada' && array_column($conversation['m
     && $conversation['messages'][2]['entity_name'] === 'Entidade de teste'
     && array_column($conversation['messages'], 'message') === ['Pode indicar a hora em que ocorreu?', $citizenReply['message'], 'Recebemos a sua resposta.'],
     'Conversation order or report state changed');
+check(!array_key_exists('internal_notes', $conversation) && !str_contains(json_encode($conversation, JSON_UNESCAPED_UNICODE), $adminNote)
+    && !str_contains(json_encode($conversation, JSON_UNESCAPED_UNICODE), 'Diligência reservada da entidade.'), 'Internal notes leaked to tracking');
 $dashboard = $kernel->handle(Request::create('/admin'));
 check($dashboard->isOk() && str_contains($dashboard->getContent(), 'Encaminhada')
     && str_contains($dashboard->getContent(), 'Nenhuma entidade tem denúncias em tratamento.'), 'Routing counts toward treatment workload');
@@ -336,6 +356,9 @@ check($awaiting->isOk() && str_contains($awaiting->getContent(), 'Iniciar tratam
     && str_contains($awaiting->getContent(), 'Enviar mensagem') && str_contains($awaiting->getContent(), $citizenReply['message'])
     && str_contains($awaiting->getContent(), 'Arquivar') && str_contains($awaiting->getContent(), 'Denúncia Falsa')
     && !str_contains($awaiting->getContent(), 'Publicar actualização'), 'Wrong entity actions before treatment');
+check(str_contains($awaiting->getContent(), 'Adicionar nota interna') && str_contains($awaiting->getContent(), $adminNote)
+    && str_contains($awaiting->getContent(), '01/01/2026 13:00') && str_contains($awaiting->getContent(), '&lt;b&gt;Texto literal&lt;/b&gt;'),
+    'Entity detail is missing its private notes, escaped content or local timestamp');
 $brandDoc = new DOMDocument();
 @$brandDoc->loadHTML('<?xml encoding="utf-8" ?>'.$awaiting->getContent());
 $brand = (new DOMXPath($brandDoc))->query('//nav[contains(concat(" ", normalize-space(@class), " "), " fi-topbar ")]//span[@class="portal-brand-entity-name"]');
@@ -360,6 +383,8 @@ check($pendingPage->isOk() && str_contains($pendingPage->getContent(), 'Aprovar 
     && str_contains($pendingPage->getContent(), 'Recusar pedido')
     && str_contains($pendingPage->getContent(), 'Enviar mensagem') && str_contains($pendingPage->getContent(), $citizenReply['message'])
     && str_contains($pendingPage->getContent(), $request['reason']), 'Pending request missing from administrative detail');
+check(str_contains($pendingPage->getContent(), 'Adicionar nota interna') && str_contains($pendingPage->getContent(), e($entityNote)),
+    'Administrative detail cannot read entity notes');
 $pendingRows = tableRows('/admin/denuncias?'.http_build_query(['filters' => ['pending_reassignment' => ['isActive' => 1]]]));
 check(str_contains($pendingRows, $correction->reference) && !str_contains($pendingRows, $newer->reference), 'Pending request filter failed');
 ReportWorkflow::declineReassignment($correction, $users['admin'], $firstRequest->id, 'Fundamentação insuficiente.');
@@ -390,6 +415,10 @@ Auth::login($users['operador']);
 check(!ReportResource::getEloquentQuery()->whereKey($correction->id)->exists(), 'Old entity can list report');
 check($kernel->handle(Request::create($entityDetailPath))->getStatusCode() === 404, 'Former entity can open direct page');
 try {
+    ReportWorkflow::addInternalNote($openRecord, $users['operador'], 'Tentativa da entidade anterior.');
+    throw new RuntimeException('Former entity added an internal note');
+} catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected former entity note denial'); }
+try {
     ReportResource::details($openRecord);
     throw new RuntimeException('Old entity can reopen report');
 } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {}
@@ -408,6 +437,8 @@ check($entityPage->isOk() && str_contains($entityPage->getContent(), 'Iniciar tr
     && str_contains($entityPage->getContent(), $citizenReply['message'])
     && !str_contains($entityPage->getContent(), $request['reason'])
     && !str_contains($entityPage->getContent(), $transfer['reason']), 'Incorrect entity detail page');
+check(str_contains($entityPage->getContent(), $adminNote) && str_contains($entityPage->getContent(), e($entityNote)),
+    'Current entity cannot read the existing internal notes');
 check(!str_contains(ReportResource::details($correction)->render(), $transfer['reason']), 'Private reason in entity panel');
 ReportWorkflow::startTreatment($correction, $users['outro']);
 $inTreatment = $kernel->handle(Request::create($entityDetailPath));
@@ -578,10 +609,12 @@ Auth::login($users['admin']);
 $pending->update(['entity_id' => $entity]);
 $responsible = Operator::findOrFail($users['operador']->id);
 ReportWorkflow::assignOperator($pending->id, $responsible, $users['admin']);
+ReportWorkflow::scheduleNextAction($pending, $responsible, '2026-01-02');
 check(str_contains(tableRows('/admin/operadores/'.$responsible->id), $pending->reference)
     && !str_contains(tableRows('/admin/operadores/'.$responsible->id), $report->reference), 'Incorrect personal assignments');
 ReportWorkflow::reassign($pending, $users['admin'], ['entity_id' => $other, 'previous_entity_id' => $entity, 'reason' => 'Transferência de teste']);
-check($pending->refresh()->operator_id === null && !$responsible->reports()->whereKey($pending->id)->exists(), 'Operator retained transferred report');
+check($pending->refresh()->operator_id === null && $pending->next_action_on === null
+    && !$responsible->reports()->whereKey($pending->id)->exists(), 'A transferred report kept its former operator or deadline');
 
 $currentOperator = Operator::findOrFail($users['outro']->id);
 $archiveCopy = $pending->replicate()->forceFill(['reference' => 'LD-ENTITY-ARCHIVE']);
@@ -595,6 +628,185 @@ $entityClassification = postJson('tracking', $unclassified->getData(true), 200);
 check($entityClassification['status'] === 'Arquivada' && $entityClassification['classified_as_false']
     && !str_contains(json_encode($entityClassification, JSON_UNESCAPED_UNICODE), 'Justificação interna da entidade.'),
     'Entity classification was not public or leaked the private reason');
+
+$secondOperator = Operator::create(['name' => 'Segunda operadora', 'email' => 'operadora2@example.test',
+    'password' => 'unused-test-password', 'entity_id' => $entity]);
+$workReport = $pending->replicate()->forceFill(['reference' => 'LD-FILA-TRABALHO', 'status' => 'Encaminhada',
+    'entity_id' => $entity, 'operator_id' => null, 'created_at' => '2024-01-02 12:00:00']);
+$workReport->save();
+$unassigned = $workReport->replicate()->forceFill(['reference' => 'LD-FILA-SEM-OPERADOR', 'status' => 'Em tratamento']);
+$unassigned->save();
+ReportWorkflow::assignOperator($workReport->id, $responsible, $users['admin']);
+ReportWorkflow::requestReassignment($workReport, $responsible, ['reason' => 'Pedido na fila.']);
+ReportWorkflow::sendMessage($unassigned, $responsible, 'Mensagem enviada pela entidade.');
+$workCredentials = ['reference' => $workReport->reference, 'secret' => $unclassified->getData(true)['secret']];
+$firstReply = $workCredentials + ['message' => 'Primeira resposta.', 'message_id' => (string) \Illuminate\Support\Str::uuid()];
+$firstUnread = postJson('tracking/messages', $firstReply, 201);
+$workIndex = '/entidade/denuncias?tab=';
+$workDetail = '/entidade/denuncias/'.$workReport->id;
+Auth::login($users['admin']);
+check($kernel->handle(Request::create('/admin/denuncias/'.$workReport->id))->isOk()
+    && !DB::table('report_message_reads')->where('report_id', $workReport->id)->exists(), 'Administration marked an operator message as read');
+Auth::login($responsible);
+$workDashboard = $kernel->handle(Request::create('/entidade?period=today'));
+check($workDashboard->isOk() && str_contains($workDashboard->getContent(), 'Fila de trabalho'), 'Missing work queue');
+$workDoc = new DOMDocument();
+@$workDoc->loadHTML('<?xml encoding="utf-8" ?>'.$workDashboard->getContent());
+$workLinks = new DOMXPath($workDoc);
+foreach (['por-iniciar', 'por-ler', 'reencaminhamento-pendente', 'minhas'] as $tab) {
+    $total = $workLinks->query('//section[@aria-labelledby="work-queue-title"]//a[contains(@href,"tab='.$tab.'")]/strong');
+    check($total->length === 1 && trim($total->item(0)->textContent) === '1', 'Wrong work queue count: '.$tab);
+    $rows = tableRows($workIndex.$tab);
+    check(str_contains($rows, $workReport->reference) && !str_contains($rows, $unassigned->reference), 'Wrong work tab records: '.$tab);
+}
+check($kernel->handle(Request::create($workDetail))->isOk(), 'Cannot read work report');
+check($workReport->messages()->unreadBy($responsible)->count() === 0
+    && $workReport->messages()->unreadBy($secondOperator)->count() === 1, 'Read state leaked across operators');
+check(!str_contains(tableRows($workIndex.'por-ler'), $workReport->reference), 'Read report still in unread tab');
+Auth::login($secondOperator);
+check(str_contains(tableRows($workIndex.'por-ler'), $workReport->reference)
+    && !str_contains(tableRows($workIndex.'minhas'), $workReport->reference), 'Second operator inbox or assignments are wrong');
+try {
+    ReportWorkflow::setAwaitingReply($workReport, $responsible, true);
+    throw new RuntimeException('An unstarted report was put on hold');
+} catch (\Illuminate\Validation\ValidationException) {}
+ReportWorkflow::startTreatment($workReport, $responsible);
+try {
+    ReportWorkflow::setAwaitingReply($workReport, $currentOperator, true);
+    throw new RuntimeException('A different entity put the report on hold');
+} catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected cross-entity hold denial'); }
+ReportWorkflow::setAwaitingReply($workReport, $responsible, true);
+check($workReport->fresh()->isAwaitingReply() && !str_contains(tableRows($workIndex.'por-ler'), $workReport->reference)
+    && str_contains(tableRows($workIndex.'a-aguardar-resposta'), $workReport->reference), 'Hold did not move work between queues');
+ReportWorkflow::setAwaitingReply($workReport, $responsible, false);
+check(!$workReport->fresh()->isAwaitingReply(), 'Manual resume did not clear hold');
+ReportWorkflow::setAwaitingReply($workReport, $responsible, true);
+$waitingPage = $kernel->handle(Request::create($workDetail));
+check($waitingPage->isOk() && str_contains($waitingPage->getContent(), 'Retomar tratamento')
+    && str_contains($waitingPage->getContent(), 'A aguardar resposta'), 'Hold controls missing from record');
+$waitingPublic = postJson('tracking', $workCredentials, 200);
+check($waitingPublic['status'] === 'Em tratamento' && !array_key_exists('awaiting_reply_since', $waitingPublic), 'Hold was made public');
+ReportWorkflow::sendMessage($workReport, $responsible, 'A entidade aguarda esclarecimento.');
+check(postJson('tracking/messages', $firstReply, 201) === $firstUnread && $workReport->fresh()->isAwaitingReply(),
+    'A staff message or an idempotent retry resumed treatment');
+$secondUnread = postJson('tracking/messages', $workCredentials + ['message' => 'Segunda resposta.',
+    'message_id' => (string) \Illuminate\Support\Str::uuid()], 201);
+check(!$workReport->fresh()->isAwaitingReply() && $workReport->fresh()->status === 'Em tratamento'
+    && !str_contains(tableRows($workIndex.'a-aguardar-resposta'), $workReport->reference)
+    && str_contains(tableRows($workIndex.'por-ler'), $workReport->reference), 'A new citizen response did not restore attention');
+ReportWorkflow::markMessagesRead($workReport, $responsible, $firstUnread['id']);
+check($workReport->messages()->unreadBy($responsible)->pluck('id')->all() === [$secondUnread['id']], 'An unseen reply was marked as read');
+Auth::login($responsible);
+check($kernel->handle(Request::create($workDetail))->isOk(), 'Cannot read latest reply');
+ReportWorkflow::markMessagesRead($workReport, $responsible, $firstUnread['id']);
+check($workReport->messages()->unreadBy($responsible)->count() === 0, 'An older read moved the cursor backwards');
+Auth::login($currentOperator);
+check(!str_contains(tableRows($workIndex.'por-ler'), $workReport->reference)
+    && $kernel->handle(Request::create($workDetail))->getStatusCode() === 404, 'Another entity can access the work report');
+
+$todayInLuanda = \Carbon\CarbonImmutable::today('Africa/Luanda');
+$overdue = $todayInLuanda->subDay();
+ReportWorkflow::scheduleNextAction($workReport, $secondOperator, $overdue->toDateString());
+ReportWorkflow::scheduleNextAction($unassigned, $responsible, $todayInLuanda->toDateString());
+try {
+    ReportWorkflow::scheduleNextAction($workReport, $responsible, '2026-02-30');
+    throw new RuntimeException('An invalid due date was accepted');
+} catch (\Illuminate\Validation\ValidationException $e) { check(isset($e->errors()['next_action_on']), 'Incorrect date validation'); }
+try {
+    ReportWorkflow::scheduleNextAction($workReport, $currentOperator, $todayInLuanda->addDay()->toDateString());
+    throw new RuntimeException('Another entity changed the deadline');
+} catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected schedule permission denial'); }
+try {
+    ReportWorkflow::scheduleNextAction($pending, $currentOperator, $todayInLuanda->toDateString());
+    throw new RuntimeException('A closed case accepted a new deadline');
+} catch (\Illuminate\Validation\ValidationException) {}
+Auth::login($responsible);
+ReportWorkflow::setAwaitingReply($workReport, $responsible, true);
+$lateRows = tableRows($workIndex.'prazos-vencidos');
+check(str_contains($lateRows, $workReport->reference) && str_contains($lateRows, 'Vencido')
+    && !str_contains($lateRows, $unassigned->reference), 'Overdue tab ignored a waiting case or treated today as late');
+$deadlineHome = $kernel->handle(Request::create('/entidade?period=today'));
+check($deadlineHome->isOk() && str_contains($deadlineHome->getContent(), 'pd-count-overdue')
+    && str_contains($deadlineHome->getContent(), 'tab=prazos-vencidos'), 'Dashboard does not highlight overdue cases outside the period');
+$deadlineDetail = $kernel->handle(Request::create($workDetail));
+check($deadlineDetail->isOk() && str_contains($deadlineDetail->getContent(), 'Próxima acção')
+    && str_contains($deadlineDetail->getContent(), $overdue->format('d/m/Y'))
+    && str_contains($deadlineDetail->getContent(), 'Prazo vencido'), 'Overdue date or scheduling action missing from detail');
+check(!array_key_exists('next_action_on', postJson('tracking', $workCredentials, 200)), 'Internal deadline leaked to the citizen');
+ReportWorkflow::scheduleNextAction($workReport, $responsible, $todayInLuanda->addDay()->toDateString());
+check(!str_contains(tableRows($workIndex.'prazos-vencidos'), $workReport->reference), 'Rescheduled deadline still counts as overdue');
+ReportWorkflow::scheduleNextAction($workReport, $responsible, null);
+check($workReport->fresh()->next_action_on === null, 'Deadline could not be removed');
+ReportWorkflow::setAwaitingReply($workReport, $responsible, false);
+
+$distributionEntity = Entity::findOrFail($entity);
+try {
+    $distributionEntity->setResponsibleOperator($responsible->id, $secondOperator);
+    throw new RuntimeException('Operator selected their own entity manager');
+} catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected designation denial'); }
+try {
+    $distributionEntity->setResponsibleOperator($currentOperator->id, $users['admin']);
+    throw new RuntimeException('Operator from another entity designated as responsible');
+} catch (\Illuminate\Validation\ValidationException) {}
+try {
+    ReportWorkflow::distributeOperator($unassigned, $responsible, $secondOperator->id, null);
+    throw new RuntimeException('Ordinary operator distributed a report');
+} catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected distribution denial'); }
+$distributionEntity->setResponsibleOperator($responsible->id, $users['admin']);
+Auth::login($users['admin']);
+$configurationPage = $kernel->handle(Request::create('/admin/entidades/'.$entity));
+check($configurationPage->isOk() && str_contains($configurationPage->getContent(), 'Definir responsável')
+    && str_contains($configurationPage->getContent(), 'Responsável pela distribuição'), 'Missing entity manager configuration');
+
+Auth::login($responsible);
+$assignmentPath = '/entidade/denuncias/'.$unassigned->id;
+$assignmentPage = $kernel->handle(Request::create($assignmentPath));
+check($assignmentPage->isOk() && str_contains($assignmentPage->getContent(), 'Atribuir operador'), 'Manager cannot open assignment');
+try {
+    ReportWorkflow::distributeOperator($unassigned, $responsible, $currentOperator->id, null);
+    throw new RuntimeException('Report distributed to a different entity');
+} catch (\Illuminate\Validation\ValidationException) {}
+try {
+    ReportWorkflow::distributeOperator($pending, $responsible, $responsible->id, null);
+    throw new RuntimeException('Manager distributed a foreign report');
+} catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected cross-entity distribution denial'); }
+try {
+    ReportWorkflow::distributeOperator($report, $responsible, $responsible->id, null);
+    throw new RuntimeException('Manager distributed a closed report');
+} catch (\Illuminate\Validation\ValidationException) {}
+$secondOperator->suspend($users['admin']);
+try {
+    ReportWorkflow::distributeOperator($unassigned, $responsible, $secondOperator->id, null);
+    throw new RuntimeException('Report distributed to a suspended operator');
+} catch (\Illuminate\Validation\ValidationException) {}
+$secondOperator->reactivate($users['admin']);
+$secondOperator->refresh();
+
+ReportWorkflow::distributeOperator($unassigned, $responsible, $secondOperator->id, null);
+$reassignmentPage = $kernel->handle(Request::create($assignmentPath));
+check(str_contains($reassignmentPage->getContent(), 'Reatribuir operador')
+    && str_contains($reassignmentPage->getContent(), $secondOperator->name), 'Assigned operator or reassignment action missing');
+Auth::login($secondOperator);
+check(str_contains(tableRows($workIndex.'minhas'), $unassigned->reference)
+    && !str_contains($kernel->handle(Request::create($assignmentPath))->getContent(), 'Reatribuir operador'),
+    'New owner cannot see their case or has distribution privileges');
+try {
+    ReportWorkflow::distributeOperator($unassigned, $responsible, $responsible->id, null);
+    throw new RuntimeException('Stale assignment overwrote the active selection');
+} catch (\Illuminate\Validation\ValidationException) {}
+ReportWorkflow::distributeOperator($unassigned, $responsible, $responsible->id, $secondOperator->id);
+check(!str_contains(tableRows($workIndex.'minhas'), $unassigned->reference), 'Former owner still sees reassigned case in personal list');
+Auth::login($responsible);
+check(str_contains(tableRows($workIndex.'minhas'), $unassigned->reference), 'New owner is missing the reassigned case');
+
+$distributionEntity->setResponsibleOperator($secondOperator->id, $users['admin']);
+try {
+    ReportWorkflow::distributeOperator($unassigned, $responsible, $secondOperator->id, $responsible->id);
+    throw new RuntimeException('Former manager can still distribute cases');
+} catch (HttpException $e) { check($e->getStatusCode() === 403, 'Unexpected revoked manager response'); }
+$secondOperator->update(['entity_id' => $other]);
+check($distributionEntity->refresh()->responsible_operator_id === null && !$secondOperator->canDistributeReports(),
+    'Moving an operator carried over their distribution role');
 
 $verdictMigration = require dirname(__DIR__).'/database/migrations/2026_11_18_000003_add_message_entity_and_report_verdict.php';
 $verdictMigration->down();

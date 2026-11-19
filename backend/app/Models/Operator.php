@@ -18,7 +18,10 @@ class Operator extends User
         static::addGlobalScope('operators', fn (Builder $query) => $query->where('role', 'entity'));
         static::updated(function (Operator $operator) {
             if ($operator->wasChanged('entity_id')) {
-                $operator->reports()->where('entity_id', $operator->getOriginal('entity_id'))->update(['operator_id' => null]);
+                $previousEntity = $operator->getOriginal('entity_id');
+                $operator->reports()->where('entity_id', $previousEntity)->update(['operator_id' => null]);
+                Entity::whereKey($previousEntity)->where('responsible_operator_id', $operator->id)
+                    ->update(['responsible_operator_id' => null]);
             }
         });
     }
@@ -26,6 +29,11 @@ class Operator extends User
     public function reports(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Report::class, 'operator_id');
+    }
+
+    public function scopeActiveInEntity(Builder $query, int $entityId): Builder
+    {
+        return $query->where('entity_id', $entityId)->whereNull('suspended_at');
     }
 
     public function entity(): BelongsTo

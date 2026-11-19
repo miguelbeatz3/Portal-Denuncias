@@ -1,7 +1,7 @@
 <?php
 namespace App\Filament;
 
-use App\Models\Entity;
+use App\Models\{Entity, Operator};
 use Filament\Actions\{Action, CreateAction, EditAction};
 use Filament\Forms\Components\{Select, TextInput, Toggle};
 use Filament\Schemas\Components\Utilities\Get;
@@ -71,6 +71,16 @@ class EntityResource extends Resource
     {
         return [
             EditAction::make()->label('Editar')->icon(Heroicon::OutlinedPencilSquare),
+            Action::make('definirResponsavel')->label('Definir responsável')->icon(Heroicon::OutlinedUserCircle)->button()
+                ->modalDescription('O responsável pode atribuir e reatribuir denúncias aos operadores da entidade.')
+                ->fillForm(fn (Entity $record) => ['responsible_operator_id' => $record->responsible_operator_id])
+                ->schema([
+                    Select::make('responsible_operator_id')->label('Operador responsável')->searchable()
+                        ->placeholder('Sem responsável')
+                        ->options(fn (Entity $record) => Operator::activeInEntity($record->id)->orderBy('name')->pluck('name', 'id')),
+                ])
+                ->successNotificationTitle('Responsável actualizado')
+                ->action(fn (Entity $record, array $data) => $record->setResponsibleOperator($data['responsible_operator_id'] ?? null, auth()->user())),
             Action::make('desactivar')->label('Desactivar entidade')->icon(Heroicon::OutlinedPauseCircle)->color('warning')
                 ->visible(fn (Entity $record) => $record->accepts_reports)
                 ->requiresConfirmation()->modalHeading(fn (Entity $record) => 'Desactivar '.$record->name.'?')

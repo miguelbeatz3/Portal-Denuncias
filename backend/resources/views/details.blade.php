@@ -57,6 +57,22 @@
             <h2>Tratamento da denúncia</h2>
             <dl>
                 <div><dt>Entidade responsável</dt><dd>{{ $report->entity?->name ?? 'Por atribuir' }}</dd></div>
+                <div><dt>Operador atribuído</dt><dd>{{ $report->operator?->name ?? 'Por atribuir' }}</dd></div>
+                @if (!$administrative && in_array($report->status, \App\Models\Report::ACTIVE, true))
+                    <div>
+                        <dt>Próxima acção</dt>
+                        <dd>
+                            @if ($report->next_action_on)
+                                <time datetime="{{ $report->next_action_on->toDateString() }}">{{ $report->next_action_on->format('d/m/Y') }}</time>
+                                @if ($report->hasOverdueNextAction())
+                                    <x-filament::badge color="danger" class="inline-flex">Prazo vencido</x-filament::badge>
+                                @endif
+                            @else
+                                Por definir
+                            @endif
+                        </dd>
+                    </div>
+                @endif
                 <div><dt>Recepção (hora de Luanda)</dt><dd>{{ $report->created_at->timezone('Africa/Luanda')->format('d/m/Y H:i') }}</dd></div>
             </dl>
         </section>
@@ -95,6 +111,26 @@
                         @endif
                         <time datetime="{{ $message->created_at->toISOString() }}">{{ $message->created_at->timezone('Africa/Luanda')->format('d/m/Y H:i') }}</time>
                         <p class="rd-text">{{ $message->message }}</p>
+                    </li>
+                @endforeach
+            </ol>
+        @endif
+    </section>
+
+    <section class="rd-history" aria-labelledby="internal-notes-title">
+        <div class="rd-history-title">
+            <h2 id="internal-notes-title">Notas internas</h2>
+            <small>Hora de Luanda</small>
+        </div>
+        @if ($internalNotes->isEmpty())
+            <p>Ainda não há notas internas nesta denúncia.</p>
+        @else
+            <ol>
+                @foreach ($internalNotes as $note)
+                    <li>
+                        <strong>{{ $note->author_name }}</strong>
+                        <time datetime="{{ $note->created_at->toISOString() }}">{{ $note->created_at->timezone('Africa/Luanda')->format('d/m/Y H:i') }}</time>
+                        <p class="rd-text">{{ $note->body }}</p>
                     </li>
                 @endforeach
             </ol>

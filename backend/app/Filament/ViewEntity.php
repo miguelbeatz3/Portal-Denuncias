@@ -32,6 +32,7 @@ class ViewEntity extends ViewRecord
                     ->formatStateUsing(fn (string $state) => Entity::SCOPES[$state] ?? $state),
                 TextEntry::make('municipality.name')->label('Município')->placeholder('Por indicar'),
                 TextEntry::make('address')->label('Morada')->placeholder('Por indicar'),
+                TextEntry::make('responsibleOperator.name')->label('Responsável pela distribuição')->placeholder('Por definir'),
             ])->columns(2),
             Section::make('Contactos')->schema([
                 TextEntry::make('phone')->label('Telefone')->placeholder('Por indicar'),

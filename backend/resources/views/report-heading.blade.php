@@ -13,4 +13,7 @@
     @if ($report->classified_as_false)
         <x-filament::badge color="danger">Denúncia Falsa</x-filament::badge>
     @endif
+    @if (auth()->user()?->role === 'entity' && $report->isAwaitingReply())
+        <x-filament::badge color="warning" icon="heroicon-o-clock">A aguardar resposta</x-filament::badge>
+    @endif
 </span>

@@ -1,5 +1,18 @@
 <x-filament-panels::page>
     <div class="pd-dashboard">
+        @if ($workCards)
+            <section class="pd-work-queue" aria-labelledby="work-queue-title">
+                <h2 id="work-queue-title">Fila de trabalho</h2>
+                <div class="pd-counts">
+                    @foreach ($workCards as $card)
+                        <a @class(['pd-count', 'pd-count-overdue' => $card['colour'] === 'danger' && $card['total'] > 0]) href="{{ $card['url'] }}">
+                            <span><i aria-hidden="true" class="pd-dot pd-{{ $card['colour'] }}"></i>{{ $card['label'] }}</span>
+                            <strong>{{ number_format($card['total'], 0, ',', '.') }}</strong>
+                        </a>
+                    @endforeach
+                </div>
+            </section>
+        @endif
         <div class="pd-period">
             <label>Período de recepção
                 <select wire:model.live="period">

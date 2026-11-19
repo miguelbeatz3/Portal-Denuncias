@@ -91,6 +91,9 @@ Route::post('/tracking/messages', function (Request $request) use ($trackingCred
         $message = $report->messages()->firstOrCreate(['client_token' => strtolower($data['message_id'])],
             ['sender' => 'citizen', 'message' => trim($data['message'])]);
         abort_if($message->message !== trim($data['message']), 409);
+        if ($message->wasRecentlyCreated && $report->isAwaitingReply()) {
+            $report->update(['awaiting_reply_since' => null]);
+        }
         return $message;
     });
 

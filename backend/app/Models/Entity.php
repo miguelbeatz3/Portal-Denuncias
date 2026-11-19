@@ -3,6 +3,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class Entity extends Model
 {
@@ -24,6 +27,28 @@ class Entity extends Model
     public function reports(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Report::class);
+    }
+
+    public function responsibleOperator(): BelongsTo
+    {
+        return $this->belongsTo(Operator::class, 'responsible_operator_id');
+    }
+
+    public function setResponsibleOperator(?int $operatorId, User $actor): void
+    {
+        abort_unless($actor->role === 'admin', 403);
+        DB::transaction(function () use ($operatorId, $actor) {
+            $admin = Administrator::whereKey($actor->id)->whereNull('suspended_at')
+                ->where('session_version', (int) $actor->session_version)->sharedLock()->first();
+            abort_unless($admin, 403);
+            if ($operatorId !== null && !Operator::activeInEntity($this->id)->sharedLock()->find($operatorId)) {
+                throw ValidationException::withMessages(['responsible_operator_id' => 'Seleccione um operador activo desta entidade.']);
+            }
+            $current = static::lockForUpdate()->findOrFail($this->id);
+            $current->responsible_operator_id = $operatorId;
+            $current->save();
+        });
+        $this->refresh();
     }
 
     public static function destinations(Report $report): array

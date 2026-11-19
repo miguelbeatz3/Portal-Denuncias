@@ -22,6 +22,17 @@ class AdminDashboard extends Dashboard
 
     protected function getViewData(): array
     {
+        $user = auth()->user();
+        $admin = $user->role === 'admin';
+        $workCards = [];
+        if (!$admin) {
+            $work = ReportResource::getEloquentQuery();
+            foreach (ListReports::workViews($user) as $tab => $view) {
+                $workCards[] = ['label' => $view['label'], 'colour' => $view['colour'],
+                    'total' => $view['filter'](clone $work)->count(),
+                    'url' => ReportResource::getUrl('index', ['tab' => $tab])];
+            }
+        }
         $today = CarbonImmutable::today('Africa/Luanda');
         $end = $this->period === 'yesterday' ? $today->subDay() : $today;
         $start = match ($this->period) {
@@ -35,14 +46,14 @@ class AdminDashboard extends Dashboard
             $invalid = Validator::make(['from' => $this->from, 'until' => $this->until], [
                 'from' => 'required|date_format:Y-m-d', 'until' => 'required|date_format:Y-m-d|after_or_equal:from',
             ])->fails();
-            if ($invalid) return ['periods' => self::PERIODS, 'rangeError' => 'Indique as duas datas. A data final deve ser igual ou posterior à inicial.'];
+            if ($invalid) return ['workCards' => $workCards, 'periods' => self::PERIODS,
+                'rangeError' => 'Indique as duas datas. A data final deve ser igual ou posterior à inicial.'];
             $start = CarbonImmutable::parse($this->from, 'Africa/Luanda');
             $end = CarbonImmutable::parse($this->until, 'Africa/Luanda');
         }
         $base = Report::where('created_at', '>=', $start->utc())->where('created_at', '<', $end->addDay()->utc());
-        $admin = auth()->user()->role === 'admin';
         if (!$admin) {
-            $base->whereNotNull('entity_id')->where('entity_id', auth()->user()->entity_id);
+            $base->whereNotNull('entity_id')->where('entity_id', $user->entity_id);
         }
         $dates = ['received' => ['from' => $start->toDateString(), 'until' => $end->toDateString()]];
         $counts = (clone $base)->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
@@ -95,10 +106,11 @@ class AdminDashboard extends Dashboard
             'chartMax' => $chartMax, 'ticks' => range(0, $chartMax, $tickStep),
             'peakIndex' => array_search($peak, $totals), 'receivedTotal' => array_sum($totals),
             'rangeLabel' => $start->format('d/m/Y').' – '.$end->format('d/m/Y'),
-            'cards' => $cards,
+            'cards' => $cards, 'workCards' => $workCards,
             'admin' => $admin,
             'pendingReassignments' => $admin ? Report::whereHas('pendingReassignmentRequest')->count() : 0,
-            'queue' => (clone $base)->whereIn('status', $admin ? ['Recebida'] : Report::ACTIVE)->oldest()->orderBy('id')->limit(5)->get(),
+            'queue' => (clone $base)->whereIn('status', $admin ? ['Recebida'] : Report::ACTIVE)
+                ->when(!$admin, fn ($query) => $query->whereNull('awaiting_reply_since'))->oldest()->orderBy('id')->limit(5)->get(),
             'workload' => $admin ? (clone $base)->where('status', 'Em tratamento')->whereNotNull('entity_id')
                 ->selectRaw('entity_id, count(*) as total')->with('entity:id,name')
                 ->groupBy('entity_id')->orderByDesc('total')->orderBy('entity_id')->limit(5)->get() : null,

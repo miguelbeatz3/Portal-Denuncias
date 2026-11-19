@@ -38,7 +38,7 @@ class ViewReport extends ViewRecord
     public function infolist(Schema $schema): Schema
     {
         return $schema->components([
-            Html::make(fn () => ReportResource::details($this->getRecord()))->columnSpanFull(),
+            Html::make(fn () => ReportResource::details($this->getRecord(), markMessagesRead: true))->columnSpanFull(),
         ]);
     }
 

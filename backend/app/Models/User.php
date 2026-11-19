@@ -9,6 +9,12 @@ class User extends Authenticatable implements FilamentUser
 {
     protected $hidden = ['password', 'remember_token'];
 
+    public function canDistributeReports(): bool
+    {
+        return $this->role === 'entity' && $this->suspended_at === null && $this->entity_id !== null
+            && Entity::whereKey($this->entity_id)->where('responsible_operator_id', $this->id)->exists();
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return match ($panel->getId()) {
